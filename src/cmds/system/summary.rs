@@ -299,3 +299,76 @@ fn extract_number(text: &str, after: &str) -> Option<usize> {
         .and_then(|c| c.get(1))
         .and_then(|m| m.as_str().parse().ok())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn count_tokens(s: &str) -> usize {
+        s.split_whitespace().count()
+    }
+
+    #[test]
+    fn test_extract_number() {
+        assert_eq!(extract_number("42 passed; 0 failed", "passed"), Some(42));
+        assert_eq!(extract_number("42 passed; 0 failed", "failed"), Some(0));
+        assert_eq!(extract_number("no numbers here", "passed"), None);
+    }
+
+    #[test]
+    fn test_test_results_summary() {
+        let input = "running 3 tests\ntest a ... ok\ntest b ... ok\ntest c ... ok\ntest result: ok. 3 passed; 0 failed; 1 ignored; 0 measured\n";
+        let out = summarize_output(input, "cargo test", true);
+        assert!(out.contains("[ok] Command: cargo test"));
+        assert!(out.contains("Test Results:"));
+        assert!(out.contains("[ok] 3 passed"));
+        assert!(out.contains("skip 1 skipped"));
+        assert!(!out.contains("[FAIL]"));
+    }
+
+    #[test]
+    fn test_build_summary_with_errors() {
+        let input = "Compiling demo v0.1.0\nerror[E0308]: mismatched types\n --> src/main.rs:4:5\nwarning: unused variable: `x`\n";
+        let out = summarize_output(input, "cargo build", false);
+        assert!(out.contains("[FAIL] Command: cargo build"));
+        assert!(out.contains("Build Summary:"));
+        assert!(out.contains("[error] 1 errors"));
+        assert!(out.contains("[warn] 1 warnings"));
+        assert!(out.contains("error[E0308]: mismatched types"));
+    }
+
+    #[test]
+    fn test_json_object_summary() {
+        let input = r#"{"name": "demo", "version": "1.0.0", "private": true}"#;
+        let out = summarize_output(input, "cat package.json", true);
+        assert!(out.contains("JSON Output:"));
+        assert!(out.contains("Object with 3 keys:"));
+        assert!(out.contains("• name"));
+    }
+
+    #[test]
+    fn test_list_summary_truncates() {
+        let input = (0..25).map(|i| format!("item-{}\n", i)).collect::<String>();
+        let out = summarize_output(&input, "ls", true);
+        assert!(out.contains("List (25 items):"));
+        assert!(out.contains(&format!("... +{} more", 25 - MAX_SUMMARY_LIST)));
+    }
+
+    #[test]
+    fn test_empty_output_does_not_panic() {
+        let out = summarize_output("", "true", true);
+        assert!(out.contains("0 lines of output"));
+    }
+
+    #[test]
+    fn test_token_savings_on_test_output() {
+        let mut input = String::from("running 40 tests\n");
+        for i in 0..40 {
+            input.push_str(&format!("test module::case_{} ... ok\n", i));
+        }
+        input.push_str("test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n");
+        let out = summarize_output(&input, "cargo test", true);
+        let savings = 100.0 - (count_tokens(&out) as f64 / count_tokens(&input) as f64 * 100.0);
+        assert!(savings >= 60.0, "Expected >=60% savings, got {:.1}%", savings);
+    }
+}
