@@ -375,7 +375,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install RTK
-        run: cargo install --git https://github.com/rtk-ai/rtk --branch master
+        run: cargo install --git https://github.com/mintoriakamoto/rtk --branch master
 
       - name: Export weekly stats
         run: |
@@ -450,7 +450,7 @@ if __name__ == "__main__":
 ```rust
 // In your Cargo.toml
 // [dependencies]
-// rtk = { git = "https://github.com/rtk-ai/rtk" }
+// rtk = { git = "https://github.com/mintoriakamoto/rtk" }
 
 use rtk::tracking::{Tracker, TimedExecution};
 use anyhow::Result;

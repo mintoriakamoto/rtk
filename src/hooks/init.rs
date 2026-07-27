@@ -36,7 +36,7 @@ const RTK_SLIM_CODEX: &str = include_str!("../../hooks/codex/rtk-awareness.md");
 /// Template written by `rtk init` when no filters.toml exists yet.
 const FILTERS_TEMPLATE: &str = r#"# Project-local RTK filters — commit this file with your repo.
 # Filters here override user-global and built-in filters.
-# Docs: https://github.com/rtk-ai/rtk#custom-filters
+# Docs: https://github.com/mintoriakamoto/rtk#custom-filters
 schema_version = 1
 
 # Example: suppress build noise from a custom tool
@@ -52,7 +52,7 @@ schema_version = 1
 /// Template for user-global filters (~/.config/rtk/filters.toml).
 const FILTERS_GLOBAL_TEMPLATE: &str = r#"# User-global RTK filters — apply to all your projects.
 # Project-local .rtk/filters.toml takes precedence over these.
-# Docs: https://github.com/rtk-ai/rtk#custom-filters
+# Docs: https://github.com/mintoriakamoto/rtk#custom-filters
 schema_version = 1
 
 # Example: suppress noise from a tool you use everywhere
@@ -500,7 +500,7 @@ fn prompt_telemetry_consent() -> Result<()> {
     eprintln!("  Who:     RTK AI Labs, contact@rtk-ai.app");
     eprintln!("  Rights:  disable anytime with `rtk telemetry disable`,");
     eprintln!("           request erasure with `rtk telemetry forget`");
-    eprintln!("  Details: https://github.com/rtk-ai/rtk/blob/master/docs/TELEMETRY.md");
+    eprintln!("  Details: https://github.com/mintoriakamoto/rtk/blob/master/docs/TELEMETRY.md");
     eprintln!();
     eprint!("Enable anonymous telemetry? [y/N] ");
 
@@ -4294,7 +4294,7 @@ fn patch_gemini_settings(
     if patch_mode == PatchMode::Skip {
         println!(
             "\nManual setup needed: add RTK hook to {}\n\
-             See: https://github.com/rtk-ai/rtk#gemini-cli",
+             See: https://github.com/mintoriakamoto/rtk#gemini-cli",
             settings_path.display()
         );
         return Ok(());
