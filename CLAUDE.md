@@ -74,7 +74,7 @@ For the full architecture, component details, and module development patterns, s
 - [docs/contributing/TECHNICAL.md](docs/contributing/TECHNICAL.md) — End-to-end flow, folder map, hook system, filter pipeline
 - [docs/contributing/CODING_PRACTICES.md](docs/contributing/CODING_PRACTICES.md) — Day-to-day coding practices reviewers look for on PRs
 
-Module responsibilities are documented in each folder's `README.md` and each file's `//!` doc header. Browse `src/cmds/*/` to discover available filters.
+Module responsibilities are documented in each folder's `README.md` and each file's `//!` doc header. Browse `src/cmds/*/` to discover available filters. Most ecosystem `mod.rs` files use `automod::dir!()`, so any `.rs` file added to `src/cmds/<ecosystem>/` is automatically exposed as a public module — no manual `pub mod` wiring, but WIP files get exposed too.
 
 Supported ecosystems: git/gh/glab/gt, cargo, go/golangci-lint, npm/pnpm/npx, ruff/pytest/pip/uv/mypy, rspec/rubocop/rake, dotnet, playwright/vitest/jest, docker/kubectl/oc/aws/psql/curl/wget, gradlew/mvn, sbt, php/artisan/phpunit/phpstan/pest/paratest/ecs/pint.
 
@@ -131,6 +131,10 @@ cargo fmt --all && cargo clippy --all-targets && cargo test --all
 - Never commit code that hasn't passed all 3 checks
 - Fix ALL clippy warnings before moving on (zero tolerance)
 - If build fails, fix it immediately before continuing to next task
+
+**Compiler gates**: `Cargo.toml` sets `[lints.rust] warnings = "deny"` and `unsafe_code = "deny"` — every compiler warning (unused import, dead code, etc.) is a hard build error. MSRV is Rust 1.91 (edition 2021).
+
+**CI** (`.github/workflows/ci.yml`): `cargo fmt --check`, `cargo clippy --all-targets`, `cargo test --all` on Linux + macOS + Windows, and `cargo audit`. An additional clippy pass flags `unwrap_used`/`panic`/`expect_used` in production code.
 
 **Performance verification** (for filter changes):
 ```bash

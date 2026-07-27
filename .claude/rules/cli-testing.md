@@ -472,13 +472,15 @@ fn test_real_command_execution() {
 
 ## Anti-Patterns
 
-❌ **DON'T** test with hardcoded synthetic data
+❌ **DON'T** invent input formats the real command never emits
 ```rust
-// ❌ WRONG
+// ❌ WRONG — `git log --oneline` output has no "Author:" lines
 let input = "commit abc123\nAuthor: John";
 let output = filter_git_log(input);
-// Synthetic data doesn't reflect real command output
+// Made-up formats test a parser path that never runs in production
 ```
+Inline strings are fine (see "Fixture strategy" above) — as long as they're copied from
+real command output, not written from memory.
 
 ✅ **DO** assert directly on expected output
 ```rust
