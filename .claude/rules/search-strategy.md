@@ -30,7 +30,8 @@ src/
 │   ├── constants.rs           ← Shared constants
 │   ├── guard.rs                ← Guard-rail checks
 │   ├── runner.rs              ← Command execution runner
-│   └── stream.rs              ← Streaming output handling
+│   ├── stream.rs              ← Streaming output handling
+│   └── truncate.rs            ← Global truncation caps (CAP_ERRORS, CAP_WARNINGS, CAP_LIST, CAP_INVENTORY)
 ├── hooks/                     ← Hook system
 │   ├── init.rs                ← rtk init command
 │   ├── rewrite_cmd.rs         ← rtk rewrite command
@@ -48,21 +49,22 @@ src/
 │   ├── ccusage.rs             ← ccusage data parsing
 │   └── session_cmd.rs         ← Session adoption reporting
 ├── cmds/                      ← Command filter modules
-│   ├── git/                   ← git, gh, gt, diff
+│   ├── git/                   ← git, gh, glab, gt, diff
 │   ├── rust/                  ← cargo, runner (err/test)
 │   ├── js/                    ← npm, pnpm, vitest, lint, tsc, next, prettier, playwright, prisma
-│   ├── python/                ← ruff, pytest, mypy, pip
+│   ├── python/                ← ruff, pytest, mypy, pip, uv
 │   ├── go/                    ← go, golangci-lint
 │   ├── dotnet/                ← dotnet, binlog, trx, format_report
-│   ├── cloud/                 ← aws, container (docker/kubectl), curl, wget, psql
-│   ├── system/                ← ls, tree, read, grep, find, wc, env, json, log, deps, summary, format, local_llm
+│   ├── cloud/                 ← aws, container (docker/kubectl/oc), curl, wget, psql
+│   ├── system/                ← ls, tree, read, search (grep/rg), find, wc, env, json, log, deps, summary, format, pipe, local_llm
 │   ├── ruby/                  ← rake, rspec, rubocop
 │   ├── jvm/                   ← gradlew, mvn
+│   ├── scala/                 ← sbt
 │   └── php/                   ← php, artisan, phpunit, phpstan, pest, paratest, ecs, pint
 ├── discover/                  ← Claude Code history analysis
 ├── learn/                     ← CLI correction detection
 ├── parser/                    ← Parser infrastructure
-└── filters/                   ← 63 TOML filter configs
+└── filters/                   ← 64 TOML filter configs
 ```
 
 ## Common Search Patterns

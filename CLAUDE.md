@@ -16,7 +16,7 @@ This is a fork with critical fixes for git argument parsing and modern JavaScrip
 
 **Verify correct installation:**
 ```bash
-rtk --version  # Should show "rtk 0.28.2" (or newer)
+rtk --version  # Should show "rtk 0.42.4" (or newer)
 rtk gain       # Should show token savings stats (NOT "command not found")
 ```
 
@@ -72,10 +72,13 @@ rtk uses a **command proxy architecture**: `main.rs` routes CLI commands via a C
 For the full architecture, component details, and module development patterns, see:
 - [ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md) — System design, module organization, filtering strategies, error handling
 - [docs/contributing/TECHNICAL.md](docs/contributing/TECHNICAL.md) — End-to-end flow, folder map, hook system, filter pipeline
+- [docs/contributing/CODING_PRACTICES.md](docs/contributing/CODING_PRACTICES.md) — Day-to-day coding practices reviewers look for on PRs
 
 Module responsibilities are documented in each folder's `README.md` and each file's `//!` doc header. Browse `src/cmds/*/` to discover available filters.
 
-Supported ecosystems: git/gh/gt, cargo, go/golangci-lint, npm/pnpm/npx, ruff/pytest/pip/mypy, rspec/rubocop/rake, dotnet, playwright/vitest/jest, docker/kubectl/aws, gradlew/mvn, php/artisan/phpunit/phpstan/pest.
+Supported ecosystems: git/gh/glab/gt, cargo, go/golangci-lint, npm/pnpm/npx, ruff/pytest/pip/uv/mypy, rspec/rubocop/rake, dotnet, playwright/vitest/jest, docker/kubectl/oc/aws/psql/curl/wget, gradlew/mvn, sbt, php/artisan/phpunit/phpstan/pest/paratest/ecs/pint.
+
+Output truncation limits are centralized in `src/core/truncate.rs` (`CAP_ERRORS`, `CAP_WARNINGS`, `CAP_LIST`, `CAP_INVENTORY`) — use these shared caps in filters instead of hardcoding magic numbers. See `src/core/README.md` ("Truncation Caps") for cap classes and deviation rules.
 
 ### Proxy Mode
 
@@ -96,6 +99,10 @@ rtk proxy curl https://api.example.com/data  # Any command works
 ```
 
 All proxy commands appear in `rtk gain --history` with 0% bash output reduction (input = output).
+
+### Pipe Mode
+
+`rtk pipe` reads stdin, applies a named filter, and prints the filtered output (Unix pipe mode): `some_cmd | rtk pipe --filter cargo-test`. Use `--passthrough` to forward stdin unfiltered. Filter resolution lives in `src/cmds/system/pipe_cmd.rs`.
 
 ## Coding Rules
 
