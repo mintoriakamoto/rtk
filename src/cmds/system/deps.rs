@@ -7,10 +7,18 @@ use anyhow::Result;
 use regex::Regex;
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 
 const MAX_DEPS: usize = CAP_WARNINGS;
 // dev deps are secondary to prod — show fewer.
 const MAX_DEV_DEPS: usize = reduced(CAP_WARNINGS, 5);
+
+static CARGO_DEP_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^([a-zA-Z0-9_-]+)\s*=\s*(?:"([^"]+)"|.*version\s*=\s*"([^"]+)")"#).unwrap()
+});
+static CARGO_SECTION_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\[([^\]]+)\]").unwrap());
+static REQUIREMENTS_DEP_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^([a-zA-Z0-9_-]+)([=<>!~]+.*)?$").unwrap());
 
 /// Summarize project dependencies
 pub fn run(path: &Path, verbose: u8) -> Result<()> {
@@ -82,21 +90,22 @@ pub fn run(path: &Path, verbose: u8) -> Result<()> {
 
 fn summarize_cargo_str(path: &Path) -> Result<String> {
     let content = fs::read_to_string(path)?;
-    let dep_re =
-        Regex::new(r#"^([a-zA-Z0-9_-]+)\s*=\s*(?:"([^"]+)"|.*version\s*=\s*"([^"]+)")"#).unwrap();
-    let section_re = Regex::new(r"^\[([^\]]+)\]").unwrap();
+    Ok(summarize_cargo_content(&content))
+}
+
+fn summarize_cargo_content(content: &str) -> String {
     let mut current_section = String::new();
     let mut deps = Vec::new();
     let mut dev_deps = Vec::new();
     let mut out = String::new();
 
     for line in content.lines() {
-        if let Some(caps) = section_re.captures(line) {
+        if let Some(caps) = CARGO_SECTION_RE.captures(line) {
             current_section = caps
                 .get(1)
                 .map(|m| m.as_str().to_string())
                 .unwrap_or_default();
-        } else if let Some(caps) = dep_re.captures(line) {
+        } else if let Some(caps) = CARGO_DEP_RE.captures(line) {
             let name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
             let version = caps
                 .get(2)
@@ -130,12 +139,16 @@ fn summarize_cargo_str(path: &Path) -> Result<String> {
             out.push_str(&format!("    ... +{} more\n", dev_deps.len() - MAX_DEV_DEPS));
         }
     }
-    Ok(out)
+    out
 }
 
 fn summarize_package_json_str(path: &Path) -> Result<String> {
     let content = fs::read_to_string(path)?;
-    let json: serde_json::Value = serde_json::from_str(&content)?;
+    summarize_package_json_content(&content)
+}
+
+fn summarize_package_json_content(content: &str) -> Result<String> {
+    let json: serde_json::Value = serde_json::from_str(content)?;
     let mut out = String::new();
 
     if let Some(name) = json.get("name").and_then(|v| v.as_str()) {
@@ -171,7 +184,10 @@ fn summarize_package_json_str(path: &Path) -> Result<String> {
 
 fn summarize_requirements_str(path: &Path) -> Result<String> {
     let content = fs::read_to_string(path)?;
-    let dep_re = Regex::new(r"^([a-zA-Z0-9_-]+)([=<>!~]+.*)?$").unwrap();
+    Ok(summarize_requirements_content(&content))
+}
+
+fn summarize_requirements_content(content: &str) -> String {
     let mut deps = Vec::new();
     let mut out = String::new();
 
@@ -180,7 +196,7 @@ fn summarize_requirements_str(path: &Path) -> Result<String> {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        if let Some(caps) = dep_re.captures(line) {
+        if let Some(caps) = REQUIREMENTS_DEP_RE.captures(line) {
             let name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
             let version = caps.get(2).map(|m| m.as_str()).unwrap_or("");
             deps.push(format!("{}{}", name, version));
@@ -194,11 +210,15 @@ fn summarize_requirements_str(path: &Path) -> Result<String> {
     if deps.len() > MAX_DEPS {
         out.push_str(&format!("    ... +{} more\n", deps.len() - MAX_DEPS));
     }
-    Ok(out)
+    out
 }
 
 fn summarize_pyproject_str(path: &Path) -> Result<String> {
     let content = fs::read_to_string(path)?;
+    Ok(summarize_pyproject_content(&content))
+}
+
+fn summarize_pyproject_content(content: &str) -> String {
     let mut in_deps = false;
     let mut deps = Vec::new();
     let mut out = String::new();
@@ -230,11 +250,15 @@ fn summarize_pyproject_str(path: &Path) -> Result<String> {
             out.push_str(&format!("    ... +{} more\n", deps.len() - MAX_DEPS));
         }
     }
-    Ok(out)
+    out
 }
 
 fn summarize_gomod_str(path: &Path) -> Result<String> {
     let content = fs::read_to_string(path)?;
+    Ok(summarize_gomod_content(&content))
+}
+
+fn summarize_gomod_content(content: &str) -> String {
     let mut module_name = String::new();
     let mut go_version = String::new();
     let mut deps = Vec::new();
@@ -273,5 +297,125 @@ fn summarize_gomod_str(path: &Path) -> Result<String> {
             out.push_str(&format!("    ... +{} more\n", deps.len() - MAX_DEPS));
         }
     }
-    Ok(out)
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn count_tokens(s: &str) -> usize {
+        s.split_whitespace().count()
+    }
+
+    #[test]
+    fn test_cargo_sections_and_versions() {
+        let input = r#"[package]
+name = "rtk"
+version = "0.42.4"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+anyhow = "1.0"
+regex = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+"#;
+        let out = summarize_cargo_content(input);
+        assert!(out.contains("Dependencies (3):"));
+        assert!(out.contains("clap (4)"));
+        assert!(out.contains("anyhow (1.0)"));
+        assert!(out.contains("Dev (1):"));
+        assert!(out.contains("tempfile (3)"));
+        // [package] and [profile.release] entries must not leak into deps
+        assert!(!out.contains("opt-level"));
+        assert!(!out.contains("edition"));
+    }
+
+    #[test]
+    fn test_cargo_truncates_past_cap() {
+        let mut input = String::from("[dependencies]\n");
+        for i in 0..(MAX_DEPS + 7) {
+            input.push_str(&format!("crate{} = \"1.0\"\n", i));
+        }
+        let out = summarize_cargo_content(&input);
+        assert!(out.contains(&format!("Dependencies ({}):", MAX_DEPS + 7)));
+        assert!(out.contains("... +7 more"));
+    }
+
+    #[test]
+    fn test_requirements_versions_and_comments() {
+        let input = "# pinned deps\nrequests==2.31.0\nflask>=2.0\nnumpy\n\n";
+        let out = summarize_requirements_content(input);
+        assert!(out.contains("Packages (3):"));
+        assert!(out.contains("requests==2.31.0"));
+        assert!(out.contains("flask>=2.0"));
+        assert!(out.contains("numpy"));
+    }
+
+    #[test]
+    fn test_package_json_deps_and_dev() {
+        let input = r#"{
+  "name": "demo",
+  "version": "1.2.3",
+  "dependencies": {"react": "^18.0.0", "next": "14.1.0"},
+  "devDependencies": {"vitest": "^1.0.0"}
+}"#;
+        let out = summarize_package_json_content(input).expect("valid json");
+        assert!(out.contains("demo @ 1.2.3"));
+        assert!(out.contains("Dependencies (2):"));
+        assert!(out.contains("react (^18.0.0)"));
+        assert!(out.contains("Dev Dependencies (1):"));
+        assert!(summarize_package_json_content("not json").is_err());
+    }
+
+    #[test]
+    fn test_pyproject_dependency_array() {
+        let input = "[project]\nname = \"demo\"\ndependencies = [\n    \"requests>=2.0\",\n    \"click\",\n]\n";
+        let out = summarize_pyproject_content(input);
+        assert!(out.contains("Dependencies (2):"));
+        assert!(out.contains("requests>=2.0"));
+        assert!(out.contains("click"));
+    }
+
+    #[test]
+    fn test_gomod_module_and_requires() {
+        let input = "module github.com/acme/api\n\ngo 1.22\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.1\n\tgolang.org/x/sync v0.6.0\n)\n";
+        let out = summarize_gomod_content(input);
+        assert!(out.contains("github.com/acme/api (go 1.22)"));
+        assert!(out.contains("Dependencies (2):"));
+        assert!(out.contains("github.com/gin-gonic/gin v1.9.1"));
+    }
+
+    #[test]
+    fn test_empty_inputs_do_not_panic() {
+        assert_eq!(summarize_cargo_content(""), "");
+        assert_eq!(summarize_requirements_content(""), "  Packages (0):\n");
+        assert_eq!(summarize_pyproject_content(""), "");
+        assert_eq!(summarize_gomod_content(""), "");
+    }
+
+    #[test]
+    fn test_cargo_token_savings() {
+        // Realistic manifest: metadata + long dep list, summary caps at MAX_DEPS.
+        let mut input = String::from(
+            "[package]\nname = \"demo\"\nversion = \"1.0.0\"\nedition = \"2021\"\nauthors = [\"Dev Name\"]\ndescription = \"A demo application with a long description field\"\nlicense = \"MIT\"\nrepository = \"https://github.com/acme/demo\"\nkeywords = [\"cli\", \"demo\", \"example\"]\n\n[dependencies]\n",
+        );
+        for i in 0..30 {
+            input.push_str(&format!(
+                "crate{} = {{ version = \"1.{}.0\", features = [\"default\", \"extra\"] }}\n",
+                i, i
+            ));
+        }
+        input.push_str("\n[profile.release]\nopt-level = 3\nlto = true\ncodegen-units = 1\n");
+        let out = summarize_cargo_content(&input);
+        let savings =
+            100.0 - (count_tokens(&out) as f64 / count_tokens(&input) as f64 * 100.0);
+        assert!(savings >= 60.0, "Expected >=60% savings, got {:.1}%", savings);
+    }
 }

@@ -134,7 +134,7 @@ Add your own filters (or override built-ins) in either location:
 - **Project-local** — `.rtk/filters.toml` in your project root (committed with the repo)
 - **User-global** — `~/.config/rtk/filters.toml` (applies to every project)
 
-See [`src/filters/README.md`](https://github.com/rtk-ai/rtk/blob/master/src/filters/README.md) for the full TOML DSL reference.
+See [`src/filters/README.md`](https://github.com/mintoriakamoto/rtk/blob/master/src/filters/README.md) for the full TOML DSL reference.
 
 ### Trusting custom filters
 

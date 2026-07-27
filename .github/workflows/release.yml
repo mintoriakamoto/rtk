@@ -165,8 +165,11 @@ jobs:
     needs: [build, build-deb, build-rpm]
     runs-on: ubuntu-latest
     steps:
+      # App token when configured; falls back to GITHUB_TOKEN below so the
+      # release also works on repos without the GitHub App secrets.
       - uses: actions/create-github-app-token@v3
         id: app-token
+        if: ${{ secrets.APP_CLIENT_ID != '' }}
         with:
           client-id: ${{ secrets.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -218,7 +221,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           files: release/*
           prerelease: ${{ inputs.prerelease }}
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.app-token.outputs.token || github.token }}
 
   notify-discord:
     name: Notify Discord
@@ -243,11 +246,15 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.RTK_DISCORD_RELEASE }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "::notice::RTK_DISCORD_RELEASE secret not configured — skipping Discord notification"
+            exit 0
+          fi
           TAG="${{ steps.version.outputs.tag }}"
-          RELEASE_URL="https://github.com/rtk-ai/rtk/releases/tag/${TAG}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${TAG}"
 
           # Fetch release notes from GitHub API
-          NOTES=$(gh api "repos/rtk-ai/rtk/releases/tags/${TAG}" --jq '.body' 2>/dev/null | head -c 1800 || echo "")
+          NOTES=$(gh api "repos/${{ github.repository }}/releases/tags/${TAG}" --jq '.body' 2>/dev/null | head -c 1800 || echo "")
           DESC=$(echo "${NOTES:-No release notes}" | jq -Rs .)
 
           jq -n \
@@ -280,7 +287,7 @@ jobs:
       - name: Download checksums
         run: |
           gh release download "${{ steps.version.outputs.tag }}" \
-            --repo rtk-ai/rtk \
+            --repo ${{ github.repository }} \
             --pattern checksums.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -303,16 +310,16 @@ jobs:
             license "Apache 2.0"
 
             if OS.mac? && Hardware::CPU.arm?
-              url "https://github.com/rtk-ai/rtk/releases/download/TAG_PLACEHOLDER/rtk-aarch64-apple-darwin.tar.gz"
+              url "https://github.com/REPO_PLACEHOLDER/releases/download/TAG_PLACEHOLDER/rtk-aarch64-apple-darwin.tar.gz"
               sha256 "SHA_MAC_ARM_PLACEHOLDER"
             elsif OS.mac? && Hardware::CPU.intel?
-              url "https://github.com/rtk-ai/rtk/releases/download/TAG_PLACEHOLDER/rtk-x86_64-apple-darwin.tar.gz"
+              url "https://github.com/REPO_PLACEHOLDER/releases/download/TAG_PLACEHOLDER/rtk-x86_64-apple-darwin.tar.gz"
               sha256 "SHA_MAC_INTEL_PLACEHOLDER"
             elsif OS.linux? && Hardware::CPU.arm?
-              url "https://github.com/rtk-ai/rtk/releases/download/TAG_PLACEHOLDER/rtk-aarch64-unknown-linux-gnu.tar.gz"
+              url "https://github.com/REPO_PLACEHOLDER/releases/download/TAG_PLACEHOLDER/rtk-aarch64-unknown-linux-gnu.tar.gz"
               sha256 "SHA_LINUX_ARM_PLACEHOLDER"
             elsif OS.linux? && Hardware::CPU.intel?
-              url "https://github.com/rtk-ai/rtk/releases/download/TAG_PLACEHOLDER/rtk-x86_64-unknown-linux-musl.tar.gz"
+              url "https://github.com/REPO_PLACEHOLDER/releases/download/TAG_PLACEHOLDER/rtk-x86_64-unknown-linux-musl.tar.gz"
               sha256 "SHA_LINUX_INTEL_PLACEHOLDER"
             end
 
@@ -343,6 +350,7 @@ jobs:
             end
           end
           FORMULA
+          sed -i "s|REPO_PLACEHOLDER|${{ github.repository }}|g" rtk.rb
           sed -i "s/VERSION_PLACEHOLDER/${{ steps.version.outputs.version }}/g" rtk.rb
           sed -i "s/TAG_PLACEHOLDER/${{ steps.version.outputs.tag }}/g" rtk.rb
           sed -i "s/SHA_MAC_ARM_PLACEHOLDER/${{ steps.sha.outputs.mac_arm }}/g" rtk.rb
@@ -354,15 +362,23 @@ jobs:
 
       - name: Push to homebrew-tap
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::notice::HOMEBREW_TAP_TOKEN not configured — skipping Homebrew formula push"
+            exit 0
+          fi
+          if ! gh api repos/mintoriakamoto/homebrew-tap >/dev/null 2>&1; then
+            echo "::notice::mintoriakamoto/homebrew-tap does not exist or is not accessible — skipping formula push"
+            exit 0
+          fi
           CONTENT=$(base64 -w 0 rtk.rb)
-          SHA=$(gh api repos/rtk-ai/homebrew-tap/contents/Formula/rtk.rb --jq '.sha' 2>/dev/null || echo "")
+          SHA=$(gh api repos/mintoriakamoto/homebrew-tap/contents/Formula/rtk.rb --jq '.sha' 2>/dev/null || echo "")
           if [ -n "$SHA" ]; then
-            gh api -X PUT repos/rtk-ai/homebrew-tap/contents/Formula/rtk.rb \
+            gh api -X PUT repos/mintoriakamoto/homebrew-tap/contents/Formula/rtk.rb \
               -f message="rtk ${{ steps.version.outputs.version }}" \
               -f content="$CONTENT" \
               -f sha="$SHA"
           else
-            gh api -X PUT repos/rtk-ai/homebrew-tap/contents/Formula/rtk.rb \
+            gh api -X PUT repos/mintoriakamoto/homebrew-tap/contents/Formula/rtk.rb \
               -f message="rtk ${{ steps.version.outputs.version }}" \
               -f content="$CONTENT"
           fi

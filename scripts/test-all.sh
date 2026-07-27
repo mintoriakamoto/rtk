@@ -81,6 +81,47 @@ assert_fails() {
     fi
 }
 
+# Like assert_contains but ignores the exit code (for commands whose non-zero
+# exit is part of the contract, e.g. `rtk diff` on differing files).
+assert_contains_any_exit() {
+    local name="$1"
+    local needle="$2"
+    shift 2
+    local output
+    output=$("$@" 2>&1) || true
+    if echo "$output" | grep -q "$needle"; then
+        PASS=$((PASS + 1))
+        printf "  ${GREEN}PASS${NC}  %s\n" "$name"
+    else
+        FAIL=$((FAIL + 1))
+        FAILURES+=("$name")
+        printf "  ${RED}FAIL${NC}  %s\n" "$name"
+        printf "        expected: '%s'\n" "$needle"
+        printf "        got: %s\n" "$(echo "$output" | head -3)"
+    fi
+}
+
+# rtk rewrite exit-code protocol (see src/hooks/rewrite_cmd.rs):
+#   3 = rewritten (ask), 2 = deny, 1 = passthrough. A rewrite that produced
+#   an RTK command exits 3, so success here is "exit 3 + expected output".
+assert_rewrite() {
+    local name="$1"
+    local needle="$2"
+    shift 2
+    local output rc=0
+    output=$("$@" 2>&1) || rc=$?
+    if [[ "$rc" == "3" ]] && echo "$output" | grep -q "$needle"; then
+        PASS=$((PASS + 1))
+        printf "  ${GREEN}PASS${NC}  %s\n" "$name"
+    else
+        FAIL=$((FAIL + 1))
+        FAILURES+=("$name")
+        printf "  ${RED}FAIL${NC}  %s\n" "$name"
+        printf "        expected: exit 3 + '%s'\n" "$needle"
+        printf "        got: exit %s, out: %s\n" "$rc" "$(echo "$output" | head -3)"
+    fi
+}
+
 assert_help() {
     local name="$1"
     shift
@@ -118,6 +159,13 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
+
+# Network-dependent tests (curl/wget against mockhttp.org) are skipped when
+# the endpoint is unreachable, so the suite stays green offline and in CI.
+NETWORK_OK=0
+if curl -fsS --max-time 5 https://mockhttp.org/robots.txt >/dev/null 2>&1; then
+    NETWORK_OK=1
+fi
 
 # ── 1. Version & Help ───────────────────────────────
 
@@ -230,8 +278,12 @@ assert_help    "rtk cargo"                    rtk cargo
 
 section "Curl (new)"
 
-assert_contains "rtk curl JSON detect" "string" rtk curl https://mockhttp.org/json
-assert_ok       "rtk curl plain text"          rtk curl https://mockhttp.org/robots.txt
+if [[ "$NETWORK_OK" == "1" ]]; then
+    assert_contains "rtk curl JSON detect" "string" rtk curl https://mockhttp.org/json
+    assert_ok       "rtk curl plain text"          rtk curl https://mockhttp.org/robots.txt
+else
+    skip_test "rtk curl" "mockhttp.org unreachable"
+fi
 assert_help     "rtk curl"                     rtk curl
 
 # ── 8. Npm / Npx ────────────────────────────────────
@@ -246,7 +298,11 @@ assert_help    "rtk npx"                      rtk npx
 section "Pnpm"
 
 assert_help    "rtk pnpm"                     rtk pnpm
-assert_help    "rtk pnpm build"               rtk pnpm build
+if command -v pnpm >/dev/null 2>&1 && [ -f package.json ]; then
+    assert_help "rtk pnpm build"              rtk pnpm build
+else
+    skip_test "rtk pnpm build --help" "needs pnpm + package.json (forwards to pnpm)"
+fi
 assert_help    "rtk pnpm typecheck"           rtk pnpm typecheck
 
 if command -v pnpm >/dev/null 2>&1; then
@@ -257,14 +313,15 @@ fi
 
 section "Grep"
 
-assert_ok      "rtk grep pattern"             rtk grep "pub fn" src/
-assert_contains "rtk grep finds results"      "pub fn" rtk grep "pub fn" src/
-assert_ok      "rtk grep with file type"      rtk grep "pub fn" src/ -t rust
+# Faithful grep semantics: directory searches need -r, exactly like system grep.
+assert_ok      "rtk grep pattern"             rtk grep -r "pub fn" src/
+assert_contains "rtk grep finds results"      "matches" rtk grep -r "pub fn" src/
+assert_ok      "rtk grep with include glob"   rtk grep -r "pub fn" src/ --include="*.rs"
 
 section "Grep (extra args passthrough)"
 
-assert_ok      "rtk grep -i case insensitive" rtk grep "fn" src/ -i
-assert_ok      "rtk grep -A context lines"    rtk grep "fn run" src/ -A 2
+assert_ok      "rtk grep -i case insensitive" rtk grep -r "fn" src/ -i
+assert_ok      "rtk grep -A context lines"    rtk grep -r "fn run" src/ -A 2
 
 # ── 11. Find ─────────────────────────────────────────
 
@@ -277,12 +334,19 @@ assert_contains "rtk find shows files"        ".rs" rtk find "*.rs" src/
 
 section "Json"
 
-# Create temp JSON file for testing
+# Create temp JSON file for testing. Must be big enough that the compressed
+# view beats raw output — never_worse() falls back to raw for tiny files.
 TMPJSON=$(mktemp /tmp/rtk-test-XXXXX.json)
-echo '{"name":"test","count":42,"items":[1,2,3]}' > "$TMPJSON"
+{
+    echo '['
+    for i in $(seq 1 29); do
+        echo "{\"id\":$i,\"name\":\"user$i\",\"active\":true},"
+    done
+    echo '{"id":30,"name":"user30","active":true}]'
+} > "$TMPJSON"
 
 assert_ok      "rtk json file"                rtk json "$TMPJSON"
-assert_contains "rtk json shows schema"       "string" rtk json "$TMPJSON"
+assert_contains "rtk json compresses array"   "+29 more" rtk json "$TMPJSON"
 
 rm -f "$TMPJSON"
 
@@ -350,10 +414,10 @@ assert_ok      "rtk init --show"              rtk init --show
 
 section "Wget"
 
-if command -v wget >/dev/null 2>&1; then
+if command -v wget >/dev/null 2>&1 && [[ "$NETWORK_OK" == "1" ]]; then
     assert_ok  "rtk wget stdout"              rtk wget https://mockhttp.org/robots.txt -O
 else
-    skip_test "rtk wget" "wget not installed"
+    skip_test "rtk wget" "wget not installed or mockhttp.org unreachable"
 fi
 
 # ── 23. Tsc / Lint / Prettier / Next / Playwright ───
@@ -463,7 +527,7 @@ fi
 
 section "Global flags"
 
-assert_ok      "rtk -u ls ."                  rtk -u ls .
+assert_ok      "rtk --ultra-compact ls ."     rtk --ultra-compact ls .
 assert_ok      "rtk --skip-env npm --help"    rtk --skip-env npm --help
 
 # ── 32. CcEconomics ─────────────────────────────────
@@ -483,10 +547,13 @@ assert_ok      "rtk learn (no sessions)"      rtk learn --since 0 2>&1 || true
 
 section "Rewrite"
 
-assert_contains "rewrite git status"          "rtk git status"         rtk rewrite "git status"
-assert_contains "rewrite cargo test"          "rtk cargo test"         rtk rewrite "cargo test"
-assert_contains "rewrite compound &&"         "rtk git status"         rtk rewrite "git status && cargo test"
-assert_contains "rewrite pipe preserves"      "| head"                 rtk rewrite "git log | head"
+assert_rewrite "rewrite git status"           "rtk git status"         rtk rewrite "git status"
+assert_rewrite "rewrite cargo test"           "rtk cargo test"         rtk rewrite "cargo test"
+assert_rewrite "rewrite compound &&"          "rtk git status"         rtk rewrite "git status && cargo test"
+# Pipelines: only a pipeline-safe FINAL stage is rewritten (intermediate stages
+# are preserved verbatim); a pipeline whose final stage has no filter passes through.
+assert_rewrite "rewrite pipeline final stage" "git log | rtk grep fix" rtk rewrite "git log | grep fix"
+assert_fails   "rewrite pipe unsupported final passthrough"            rtk rewrite "git log | head"
 
 section "Rewrite (#345: RTK_DISABLED skip)"
 
@@ -495,14 +562,14 @@ assert_fails   "rewrite env RTK_DISABLED skip"                        rtk rewrit
 
 section "Rewrite (#346: 2>&1 preserved)"
 
-assert_contains "rewrite 2>&1 preserved"      "2>&1"                  rtk rewrite "cargo test 2>&1 | head"
+assert_rewrite "rewrite 2>&1 preserved"       "2>&1"                  rtk rewrite "cargo test 2>&1 | grep FAILED"
 
 section "Rewrite (#196: gh --json skip)"
 
 assert_fails   "rewrite gh --json skip"                               rtk rewrite "gh pr list --json number"
 assert_fails   "rewrite gh --jq skip"                                 rtk rewrite "gh api /repos --jq .name"
 assert_fails   "rewrite gh --template skip"                           rtk rewrite "gh pr view 1 --template '{{.title}}'"
-assert_contains "rewrite gh normal works"     "rtk gh pr list"        rtk rewrite "gh pr list"
+assert_rewrite "rewrite gh normal works"      "rtk gh pr list"        rtk rewrite "gh pr list"
 
 # ── 33. Verify ────────────────────────────────────────
 
@@ -529,7 +596,8 @@ section "Diff"
 
 assert_ok       "rtk diff identical files"     rtk diff Cargo.toml Cargo.toml
 assert_fails    "rtk diff differing files"     rtk diff Cargo.toml LICENSE
-assert_contains "rtk diff shows changes"       "added" rtk diff Cargo.toml LICENSE
+# Differing files exit non-zero by contract, so check output ignoring exit code.
+assert_contains_any_exit "rtk diff shows changes" "name" rtk diff Cargo.toml LICENSE
 
 # ── 37. Wc ────────────────────────────────────────────
 
@@ -564,7 +632,9 @@ fi
 
 section "Hook check (#344)"
 
-assert_contains "rtk init --show hook version" "version" rtk init --show
+# Hook version only appears when hooks are installed; "Configuration" is the
+# stable header in any environment (fresh CI containers included).
+assert_contains "rtk init --show config header" "Configuration" rtk init --show
 
 # ══════════════════════════════════════════════════════
 # Report

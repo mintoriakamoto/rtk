@@ -99,7 +99,7 @@ jobs:
       - name: Critical files check
         run: |
           echo "### Critical Files Modified" >> $GITHUB_STEP_SUMMARY
-          CRITICAL=$(git diff --name-only origin/master...HEAD | grep -E "(runner|summary|tracking|init|pnpm_cmd|container)\.rs|Cargo\.toml|workflows/.*\.yml" || true)
+          CRITICAL=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "(runner|summary|tracking|init|pnpm_cmd|container)\.rs|Cargo\.toml|workflows/.*\.yml" || true)
           if [ -n "$CRITICAL" ]; then
             echo "**HIGH RISK**: The following critical files were modified:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
@@ -119,7 +119,7 @@ jobs:
       - name: Dangerous patterns scan
         run: |
           echo "### Dangerous Code Patterns" >> $GITHUB_STEP_SUMMARY
-          PATTERNS=$(git diff origin/master...HEAD | grep -E "Command::new\(\"sh\"|Command::new\(\"bash\"|\.env\(\"LD_PRELOAD|\.env\(\"PATH|reqwest::|std::net::|TcpStream|UdpSocket|unsafe \{|\.unwrap\(\) |panic!\(|todo!\(|unimplemented!\(" || true)
+          PATTERNS=$(git diff origin/${{ github.base_ref }}...HEAD | grep -E "Command::new\(\"sh\"|Command::new\(\"bash\"|\.env\(\"LD_PRELOAD|\.env\(\"PATH|reqwest::|std::net::|TcpStream|UdpSocket|unsafe \{|\.unwrap\(\) |panic!\(|todo!\(|unimplemented!\(" || true)
           if [ -n "$PATTERNS" ]; then
             echo "**Potentially dangerous patterns detected:**" >> $GITHUB_STEP_SUMMARY
             echo '```diff' >> $GITHUB_STEP_SUMMARY
@@ -141,7 +141,7 @@ jobs:
       - name: New dependencies check
         run: |
           echo "### Dependencies Changes" >> $GITHUB_STEP_SUMMARY
-          if git diff origin/master...HEAD Cargo.toml | grep -E "^\+.*=" | grep -v "^\+\+\+" > new_deps.txt; then
+          if git diff origin/${{ github.base_ref }}...HEAD Cargo.toml | grep -E "^\+.*=" | grep -v "^\+\+\+" > new_deps.txt; then
             echo "**New dependencies added:**" >> $GITHUB_STEP_SUMMARY
             echo '```toml' >> $GITHUB_STEP_SUMMARY
             cat new_deps.txt >> $GITHUB_STEP_SUMMARY
@@ -196,6 +196,46 @@ jobs:
         with:
           fetch-depth: 0
       - run: semgrep scan --config .semgrep.yml --baseline-commit ${{ github.event.pull_request.base.sha }} --error
+
+  smoke:
+    name: smoke tests + budgets
+    needs: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system tools
+        run: sudo apt-get install -y tree ripgrep
+      - name: Build rtk (release)
+        run: cargo build --release
+      - name: Binary size budget (<10MB)
+        run: |
+          SIZE=$(stat -c%s target/release/rtk)
+          echo "rtk binary: $SIZE bytes ($((SIZE / 1024 / 1024))MB)"
+          MAX=$((10 * 1024 * 1024))
+          if [ "$SIZE" -gt "$MAX" ]; then
+            echo "::error::Binary size $SIZE bytes exceeds the 10MB budget"
+            exit 1
+          fi
+      - name: Startup time budget (<25ms median)
+        run: |
+          python3 - <<'EOF'
+          import statistics, subprocess, sys, time
+          subprocess.run(['target/release/rtk', '--version'], capture_output=True)  # warmup
+          times = []
+          for _ in range(20):
+              t = time.perf_counter()
+              subprocess.run(['target/release/rtk', '--version'], capture_output=True)
+              times.append((time.perf_counter() - t) * 1000)
+          med = statistics.median(times)
+          print(f"startup median: {med:.1f}ms (min {min(times):.1f}ms, max {max(times):.1f}ms)")
+          sys.exit(0 if med < 25 else 1)
+          EOF
+      - name: Run smoke tests
+        run: |
+          export PATH="$PWD/target/release:$PATH"
+          bash scripts/test-all.sh
 
   benchmark:
     name: benchmark

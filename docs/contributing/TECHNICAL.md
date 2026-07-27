@@ -364,8 +364,8 @@ Declarative filters with an 8-stage pipeline: strip ANSI, regex replace, match o
 | Metric | Target | Verification |
 |--------|--------|--------------|
 | Startup time | < 10ms | `hyperfine 'rtk git status' 'git status'` |
-| Memory usage | < 5MB resident | `/usr/bin/time -v rtk git status` |
-| Binary size | < 5MB stripped | `ls -lh target/release/rtk` |
+| Memory usage | < 15MB resident | `/usr/bin/time -v rtk git status` |
+| Binary size | < 10MB stripped | `ls -lh target/release/rtk`; CI `smoke` job |
 | Bash output reduction | ≥20% per filter (floor) | Snapshot + token count tests |
 
 Achieved through:

@@ -16,7 +16,7 @@ This is a fork with critical fixes for git argument parsing and modern JavaScrip
 
 **Verify correct installation:**
 ```bash
-rtk --version  # Should show "rtk 0.28.2" (or newer)
+rtk --version  # Should show "rtk 0.42.4" (or newer)
 rtk gain       # Should show token savings stats (NOT "command not found")
 ```
 
@@ -72,10 +72,13 @@ rtk uses a **command proxy architecture**: `main.rs` routes CLI commands via a C
 For the full architecture, component details, and module development patterns, see:
 - [ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md) — System design, module organization, filtering strategies, error handling
 - [docs/contributing/TECHNICAL.md](docs/contributing/TECHNICAL.md) — End-to-end flow, folder map, hook system, filter pipeline
+- [docs/contributing/CODING_PRACTICES.md](docs/contributing/CODING_PRACTICES.md) — Day-to-day coding practices reviewers look for on PRs
 
-Module responsibilities are documented in each folder's `README.md` and each file's `//!` doc header. Browse `src/cmds/*/` to discover available filters.
+Module responsibilities are documented in each folder's `README.md` and each file's `//!` doc header. Browse `src/cmds/*/` to discover available filters. Most ecosystem `mod.rs` files use `automod::dir!()`, so any `.rs` file added to `src/cmds/<ecosystem>/` is automatically exposed as a public module — no manual `pub mod` wiring, but WIP files get exposed too.
 
-Supported ecosystems: git/gh/gt, cargo, go/golangci-lint, npm/pnpm/npx, ruff/pytest/pip/mypy, rspec/rubocop/rake, dotnet, playwright/vitest/jest, docker/kubectl/aws, gradlew/mvn, php/artisan/phpunit/phpstan/pest.
+Supported ecosystems: git/gh/glab/gt, cargo, go/golangci-lint, npm/pnpm/npx, ruff/pytest/pip/uv/mypy, rspec/rubocop/rake, dotnet, playwright/vitest/jest, docker/kubectl/oc/aws/psql/curl/wget, gradlew/mvn, sbt, php/artisan/phpunit/phpstan/pest/paratest/ecs/pint.
+
+Output truncation limits are centralized in `src/core/truncate.rs` (`CAP_ERRORS`, `CAP_WARNINGS`, `CAP_LIST`, `CAP_INVENTORY`) — use these shared caps in filters instead of hardcoding magic numbers. See `src/core/README.md` ("Truncation Caps") for cap classes and deviation rules.
 
 ### Proxy Mode
 
@@ -97,6 +100,10 @@ rtk proxy curl https://api.example.com/data  # Any command works
 
 All proxy commands appear in `rtk gain --history` with 0% bash output reduction (input = output).
 
+### Pipe Mode
+
+`rtk pipe` reads stdin, applies a named filter, and prints the filtered output (Unix pipe mode): `some_cmd | rtk pipe --filter cargo-test`. Use `--passthrough` to forward stdin unfiltered. Filter resolution lives in `src/cmds/system/pipe_cmd.rs`.
+
 ## Coding Rules
 
 Rust patterns, error handling, and anti-patterns are defined in `.claude/rules/rust-patterns.md` (auto-loaded into context). Key points:
@@ -108,7 +115,7 @@ Rust patterns, error handling, and anti-patterns are defined in `.claude/rules/r
 - **No async**: single-threaded by design (startup <10ms)
 - **Exit code propagation**: `std::process::exit(code)` on child failure
 
-Testing strategy and performance targets are defined in `.claude/rules/cli-testing.md` (auto-loaded). Key targets: <10ms startup, <5MB memory, 60-90% reduction in bash output bytes.
+Testing strategy and performance targets are defined in `.claude/rules/cli-testing.md` (auto-loaded). Key targets: <10ms startup (~2.5ms measured), <10MB binary, <15MB peak memory, 60-90% reduction in bash output bytes. The binary-size and startup budgets are CI-enforced (smoke job).
 
 For contribution workflow and design philosophy, see [CONTRIBUTING.md](CONTRIBUTING.md). For the step-by-step filter implementation checklist, see [src/cmds/README.md](src/cmds/README.md#adding-a-new-command-filter).
 
@@ -124,6 +131,10 @@ cargo fmt --all && cargo clippy --all-targets && cargo test --all
 - Never commit code that hasn't passed all 3 checks
 - Fix ALL clippy warnings before moving on (zero tolerance)
 - If build fails, fix it immediately before continuing to next task
+
+**Compiler gates**: `Cargo.toml` sets `[lints.rust] warnings = "deny"` and `unsafe_code = "deny"` — every compiler warning (unused import, dead code, etc.) is a hard build error. MSRV is Rust 1.91 (edition 2021).
+
+**CI** (`.github/workflows/ci.yml`): `cargo fmt --check`, `cargo clippy --all-targets`, `cargo test --all` on Linux + macOS + Windows, and `cargo audit`. An additional clippy pass flags `unwrap_used`/`panic`/`expect_used` in production code. The `smoke` job runs `scripts/test-all.sh` against the release binary and enforces the binary-size (<10MB) and startup (<25ms CI median) budgets; the `benchmark` job runs `scripts/benchmark.sh` and fails if any filter produces more tokens than raw output or returns empty.
 
 **Performance verification** (for filter changes):
 ```bash

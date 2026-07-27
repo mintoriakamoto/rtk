@@ -59,3 +59,32 @@ pub fn detect_php_test_runner() -> PhpTestRunner {
 
     PhpTestRunner::Unknown
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_ansi_colors() {
+        let input = "\x1b[32mPASS\x1b[0m Tests\\Unit\\ExampleTest";
+        assert_eq!(strip_ansi_and_controls(input), "PASS Tests\\Unit\\ExampleTest");
+    }
+
+    #[test]
+    fn test_strip_cursor_movement_sequences() {
+        let input = "\x1b[2K\x1b[1A\x1b[2K  Running tests...";
+        assert_eq!(strip_ansi_and_controls(input), "  Running tests...");
+    }
+
+    #[test]
+    fn test_strip_control_chars_keeps_newlines_and_tabs() {
+        let input = "line1\nline2\tcol\x07\x08\x00done";
+        assert_eq!(strip_ansi_and_controls(input), "line1\nline2\tcoldone");
+    }
+
+    #[test]
+    fn test_plain_and_unicode_text_unchanged() {
+        assert_eq!(strip_ansi_and_controls(""), "");
+        assert_eq!(strip_ansi_and_controls("✓ réussi — 3 tests"), "✓ réussi — 3 tests");
+    }
+}

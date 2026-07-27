@@ -7,8 +7,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rtk-ai/rtk/actions"><img src="https://github.com/rtk-ai/rtk/workflows/Security%20Check/badge.svg" alt="CI"></a>
-  <a href="https://github.com/rtk-ai/rtk/releases"><img src="https://img.shields.io/github/v/release/rtk-ai/rtk" alt="Release"></a>
+  <a href="https://github.com/mintoriakamoto/rtk/actions"><img src="https://github.com/mintoriakamoto/rtk/workflows/Security%20Check/badge.svg" alt="CI"></a>
+  <a href="https://github.com/mintoriakamoto/rtk/releases"><img src="https://img.shields.io/github/v/release/mintoriakamoto/rtk" alt="Release"></a>
   <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
   <a href="https://discord.gg/RySmvNF5kF"><img src="https://img.shields.io/discord/1470188214710046894?label=Discord&logo=discord" alt="Discord"></a>
   <a href="https://formulae.brew.sh/formula/rtk"><img src="https://img.shields.io/homebrew/v/rtk" alt="Homebrew"></a>
@@ -76,7 +76,7 @@ brew install rtk
 ### Quick Install (Linux/macOS)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/mintoriakamoto/rtk/refs/heads/master/install.sh | sh
 ```
 
 > Installs to `~/.local/bin`. Add to PATH if needed:
@@ -87,12 +87,12 @@ curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/instal
 ### Cargo
 
 ```bash
-cargo install --git https://github.com/rtk-ai/rtk
+cargo install --git https://github.com/mintoriakamoto/rtk
 ```
 
 ### Pre-built Binaries
 
-Download from [releases](https://github.com/rtk-ai/rtk/releases):
+Download from [releases](https://github.com/mintoriakamoto/rtk/releases):
 - macOS: `rtk-x86_64-apple-darwin.tar.gz` / `rtk-aarch64-apple-darwin.tar.gz`
 - Linux: `rtk-x86_64-unknown-linux-musl.tar.gz` / `rtk-aarch64-unknown-linux-gnu.tar.gz`
 - Windows: `rtk-x86_64-pc-windows-msvc.zip`
@@ -102,7 +102,7 @@ Download from [releases](https://github.com/rtk-ai/rtk/releases):
 ### Verify Installation
 
 ```bash
-rtk --version   # Should show "rtk 0.28.2"
+rtk --version   # Should show "rtk 0.42.4"
 rtk gain        # Should show the savings dashboard
 ```
 
@@ -368,7 +368,7 @@ rtk init -g
 
 ```bash
 # Inside WSL
-curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/mintoriakamoto/rtk/refs/heads/master/install.sh | sh
 rtk init -g
 ```
 
@@ -481,21 +481,21 @@ export RTK_TELEMETRY_DISABLED=1   # Blocks telemetry regardless of consent
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=rtk-ai%2Frtk&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=mintoriakamoto%2Frtk&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=rtk-ai/rtk&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=rtk-ai/rtk&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=rtk-ai/rtk&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=mintoriakamoto/rtk&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=mintoriakamoto/rtk&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=mintoriakamoto/rtk&type=date&legend=top-left" />
  </picture>
 </a>
 
 ## StarMapper
 
-<a href="https://starmapper.bruniaux.com/rtk-ai/rtk">
+<a href="https://starmapper.bruniaux.com/mintoriakamoto/rtk">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://starmapper.bruniaux.com/api/map-image/rtk-ai/rtk?theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://starmapper.bruniaux.com/api/map-image/rtk-ai/rtk?theme=light" />
-    <img alt="StarMapper" src="https://starmapper.bruniaux.com/api/map-image/rtk-ai/rtk" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://starmapper.bruniaux.com/api/map-image/mintoriakamoto/rtk?theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://starmapper.bruniaux.com/api/map-image/mintoriakamoto/rtk?theme=light" />
+    <img alt="StarMapper" src="https://starmapper.bruniaux.com/api/map-image/mintoriakamoto/rtk" />
   </picture>
 </a>
 
@@ -514,7 +514,7 @@ export RTK_TELEMETRY_DISABLED=1   # Blocks telemetry regardless of consent
 
 ## Contributing
 
-Contributions welcome! Please open an issue or PR on [GitHub](https://github.com/rtk-ai/rtk).
+Contributions welcome! Please open an issue or PR on [GitHub](https://github.com/mintoriakamoto/rtk).
 
 Join the community on [Discord](https://discord.gg/RySmvNF5kF).
 
