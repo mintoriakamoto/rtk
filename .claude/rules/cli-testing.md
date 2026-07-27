@@ -240,7 +240,9 @@ cargo test --ignored test_real_git_log
 
 **Priority**: 🟡 **Triggers**: Performance-related changes, release preparation
 
-RTK targets <10ms startup time and <5MB memory usage.
+RTK targets <10ms startup time, <10MB stripped binary, and <15MB peak memory.
+(Measured on Linux at 0.42.4: ~2.5ms startup, 8.1MB binary, ~10MB peak RSS. The binary
+and startup budgets are enforced by the CI `smoke` job.)
 
 ### Benchmark Startup Time
 
@@ -263,11 +265,11 @@ hyperfine 'rtk git status' 'git status' --warmup 3
 ```bash
 # macOS
 /usr/bin/time -l rtk git status
-# Look for "maximum resident set size" - should be <5MB
+# Look for "maximum resident set size" - should be <15MB
 
 # Linux
 /usr/bin/time -v rtk git status
-# Look for "Maximum resident set size" - should be <5000 kbytes
+# Look for "Maximum resident set size" - should be <15000 kbytes
 ```
 
 ### Regression Detection
@@ -293,9 +295,9 @@ diff /tmp/before.txt /tmp/after.txt
 
 | Metric | Target | Verification |
 |--------|--------|--------------|
-| Startup time | <10ms | `hyperfine 'rtk <cmd>'` |
-| Memory usage | <5MB | `time -l rtk <cmd>` |
-| Binary size | <5MB | `ls -lh target/release/rtk` |
+| Startup time | <10ms (CI budget: <25ms median) | `hyperfine 'rtk <cmd>'`; CI `smoke` job |
+| Memory usage | <15MB peak RSS | `time -l rtk <cmd>` (macOS) / `time -v` (Linux) |
+| Binary size | <10MB stripped | `ls -lh target/release/rtk`; CI `smoke` job |
 
 ## Test Organization
 
@@ -361,7 +363,7 @@ When adding/modifying a filter:
 ### Before Release
 - [ ] Integration tests passed (`cargo test --ignored`)
 - [ ] Performance regression check (hyperfine comparison)
-- [ ] Memory usage verified (<5MB with `time -l`)
+- [ ] Memory usage verified (<15MB with `time -l`)
 - [ ] Cross-platform CI passed (Linux + macOS + Windows)
 
 ## Common Testing Patterns

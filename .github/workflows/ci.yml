@@ -197,6 +197,46 @@ jobs:
           fetch-depth: 0
       - run: semgrep scan --config .semgrep.yml --baseline-commit ${{ github.event.pull_request.base.sha }} --error
 
+  smoke:
+    name: smoke tests + budgets
+    needs: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system tools
+        run: sudo apt-get install -y tree ripgrep
+      - name: Build rtk (release)
+        run: cargo build --release
+      - name: Binary size budget (<10MB)
+        run: |
+          SIZE=$(stat -c%s target/release/rtk)
+          echo "rtk binary: $SIZE bytes ($((SIZE / 1024 / 1024))MB)"
+          MAX=$((10 * 1024 * 1024))
+          if [ "$SIZE" -gt "$MAX" ]; then
+            echo "::error::Binary size $SIZE bytes exceeds the 10MB budget"
+            exit 1
+          fi
+      - name: Startup time budget (<25ms median)
+        run: |
+          python3 - <<'EOF'
+          import statistics, subprocess, sys, time
+          subprocess.run(['target/release/rtk', '--version'], capture_output=True)  # warmup
+          times = []
+          for _ in range(20):
+              t = time.perf_counter()
+              subprocess.run(['target/release/rtk', '--version'], capture_output=True)
+              times.append((time.perf_counter() - t) * 1000)
+          med = statistics.median(times)
+          print(f"startup median: {med:.1f}ms (min {min(times):.1f}ms, max {max(times):.1f}ms)")
+          sys.exit(0 if med < 25 else 1)
+          EOF
+      - name: Run smoke tests
+        run: |
+          export PATH="$PWD/target/release:$PATH"
+          bash scripts/test-all.sh
+
   benchmark:
     name: benchmark
     needs: clippy

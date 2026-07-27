@@ -115,7 +115,7 @@ Rust patterns, error handling, and anti-patterns are defined in `.claude/rules/r
 - **No async**: single-threaded by design (startup <10ms)
 - **Exit code propagation**: `std::process::exit(code)` on child failure
 
-Testing strategy and performance targets are defined in `.claude/rules/cli-testing.md` (auto-loaded). Key targets: <10ms startup, <5MB memory, 60-90% reduction in bash output bytes.
+Testing strategy and performance targets are defined in `.claude/rules/cli-testing.md` (auto-loaded). Key targets: <10ms startup (~2.5ms measured), <10MB binary, <15MB peak memory, 60-90% reduction in bash output bytes. The binary-size and startup budgets are CI-enforced (smoke job).
 
 For contribution workflow and design philosophy, see [CONTRIBUTING.md](CONTRIBUTING.md). For the step-by-step filter implementation checklist, see [src/cmds/README.md](src/cmds/README.md#adding-a-new-command-filter).
 
@@ -134,7 +134,7 @@ cargo fmt --all && cargo clippy --all-targets && cargo test --all
 
 **Compiler gates**: `Cargo.toml` sets `[lints.rust] warnings = "deny"` and `unsafe_code = "deny"` — every compiler warning (unused import, dead code, etc.) is a hard build error. MSRV is Rust 1.91 (edition 2021).
 
-**CI** (`.github/workflows/ci.yml`): `cargo fmt --check`, `cargo clippy --all-targets`, `cargo test --all` on Linux + macOS + Windows, and `cargo audit`. An additional clippy pass flags `unwrap_used`/`panic`/`expect_used` in production code.
+**CI** (`.github/workflows/ci.yml`): `cargo fmt --check`, `cargo clippy --all-targets`, `cargo test --all` on Linux + macOS + Windows, and `cargo audit`. An additional clippy pass flags `unwrap_used`/`panic`/`expect_used` in production code. The `smoke` job runs `scripts/test-all.sh` against the release binary and enforces the binary-size (<10MB) and startup (<25ms CI median) budgets; the `benchmark` job runs `scripts/benchmark.sh` and fails if any filter produces more tokens than raw output or returns empty.
 
 **Performance verification** (for filter changes):
 ```bash
