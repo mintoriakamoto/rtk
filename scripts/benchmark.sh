@@ -346,8 +346,17 @@ bench "wc" "wc Cargo.toml src/main.rs" "$RTK wc Cargo.toml src/main.rs"
 # ===================
 section "curl"
 if command -v curl &> /dev/null; then
-  bench "curl json" "curl -s https://mockhttp.org/json/1" "$RTK curl https://mockhttp.org/json/1"
+  # mockhttp.org/json/N returns a different-size document on every request,
+  # so two independent fetches (raw vs rtk) are not comparable — the sign of
+  # the "savings" flips randomly and fails the negative gate. Fetch the
+  # payload once and bench both sides against the same file:// URL.
+  CURL_JSON_PAYLOAD=$(mktemp --suffix=.json 2>/dev/null || mktemp)
+  if curl -fsS --max-time 10 https://mockhttp.org/json/1 -o "$CURL_JSON_PAYLOAD" 2>/dev/null \
+      && [ -s "$CURL_JSON_PAYLOAD" ]; then
+    bench "curl json" "curl -s file://$CURL_JSON_PAYLOAD" "$RTK curl file://$CURL_JSON_PAYLOAD"
+  fi
   bench "curl text" "curl -s https://mockhttp.org/robots.txt" "$RTK curl https://mockhttp.org/robots.txt"
+  rm -f "$CURL_JSON_PAYLOAD" 2>/dev/null
 fi
 
 # ===================
@@ -355,8 +364,10 @@ fi
 # ===================
 if command -v wget &> /dev/null; then
   section "wget"
-  bench "wget" "wget -qO- https://mockhttp.org/json/1" "$RTK wget https://mockhttp.org/json/1"
-  rm -f 1 2>/dev/null
+  # robots.txt is stable across requests; /json/1 is not (see curl above),
+  # and wget has no file:// support to pin the payload.
+  bench "wget" "wget -qO- https://mockhttp.org/robots.txt" "$RTK wget https://mockhttp.org/robots.txt"
+  rm -f robots.txt 2>/dev/null
 fi
 
 # ===================
