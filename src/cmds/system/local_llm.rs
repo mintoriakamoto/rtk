@@ -4,8 +4,47 @@ use anyhow::{Context, Result};
 use regex::Regex;
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use crate::core::filter::Language;
+
+static RUST_IMPORT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^use\s+([a-zA-Z_][a-zA-Z0-9_]*(?:::[a-zA-Z_][a-zA-Z0-9_]*)?)").unwrap()
+});
+static PYTHON_IMPORT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(?:from\s+(\S+)|import\s+(\S+))").unwrap());
+static JS_IMPORT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?:import.*from\s+['"]([^'"]+)['"]|require\(['"]([^'"]+)['"]\))"#).unwrap()
+});
+static GO_IMPORT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"^\s*"([^"]+)"$"#).unwrap());
+
+static RUST_FN_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:pub\s+)?(?:async\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap()
+});
+static PYTHON_FN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"def\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
+static JS_FN_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:async\s+)?function\s+([a-zA-Z_][a-zA-Z0-9_]*)|(?:const|let|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:async\s+)?\(").unwrap()
+});
+static GO_FN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"func\s+(?:\([^)]+\)\s+)?([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
+
+static RUST_STRUCT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:pub\s+)?(?:struct|enum)\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap()
+});
+static PYTHON_STRUCT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"class\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
+static TS_STRUCT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:interface|class|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
+static GO_STRUCT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"type\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+struct").unwrap());
+static JAVA_STRUCT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:public\s+)?class\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
+
+static RUST_TRAIT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:pub\s+)?trait\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
+static TS_TRAIT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"interface\s+([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
 
 /// Heuristic-based code summarizer - no external model needed
 pub fn run(file: &Path, _model: &str, _force_download: bool, verbose: u8) -> Result<()> {
@@ -129,17 +168,13 @@ fn lang_display_name(lang: &Language) -> &'static str {
 }
 
 fn extract_imports(content: &str, lang: &Language) -> Vec<String> {
-    let pattern = match lang {
-        Language::Rust => r"^use\s+([a-zA-Z_][a-zA-Z0-9_]*(?:::[a-zA-Z_][a-zA-Z0-9_]*)?)",
-        Language::Python => r"^(?:from\s+(\S+)|import\s+(\S+))",
-        Language::JavaScript | Language::TypeScript => {
-            r#"(?:import.*from\s+['"]([^'"]+)['"]|require\(['"]([^'"]+)['"]\))"#
-        }
-        Language::Go => r#"^\s*"([^"]+)"$"#,
+    let re: &Regex = match lang {
+        Language::Rust => &RUST_IMPORT_RE,
+        Language::Python => &PYTHON_IMPORT_RE,
+        Language::JavaScript | Language::TypeScript => &JS_IMPORT_RE,
+        Language::Go => &GO_IMPORT_RE,
         _ => return Vec::new(),
     };
-
-    let re = Regex::new(pattern).unwrap();
     let mut imports = Vec::new();
     let mut seen = std::collections::HashSet::new();
 
@@ -168,17 +203,13 @@ fn is_std_import(name: &str, lang: &Language) -> bool {
 }
 
 fn extract_functions(content: &str, lang: &Language) -> Vec<String> {
-    let pattern = match lang {
-        Language::Rust => r"(?:pub\s+)?(?:async\s+)?fn\s+([a-zA-Z_][a-zA-Z0-9_]*)",
-        Language::Python => r"def\s+([a-zA-Z_][a-zA-Z0-9_]*)",
-        Language::JavaScript | Language::TypeScript => {
-            r"(?:async\s+)?function\s+([a-zA-Z_][a-zA-Z0-9_]*)|(?:const|let|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:async\s+)?\("
-        }
-        Language::Go => r"func\s+(?:\([^)]+\)\s+)?([a-zA-Z_][a-zA-Z0-9_]*)",
+    let re: &Regex = match lang {
+        Language::Rust => &RUST_FN_RE,
+        Language::Python => &PYTHON_FN_RE,
+        Language::JavaScript | Language::TypeScript => &JS_FN_RE,
+        Language::Go => &GO_FN_RE,
         _ => return Vec::new(),
     };
-
-    let re = Regex::new(pattern).unwrap();
     let mut functions = Vec::new();
 
     for line in content.lines() {
@@ -196,16 +227,14 @@ fn extract_functions(content: &str, lang: &Language) -> Vec<String> {
 }
 
 fn extract_structs(content: &str, lang: &Language) -> Vec<String> {
-    let pattern = match lang {
-        Language::Rust => r"(?:pub\s+)?(?:struct|enum)\s+([a-zA-Z_][a-zA-Z0-9_]*)",
-        Language::Python => r"class\s+([a-zA-Z_][a-zA-Z0-9_]*)",
-        Language::TypeScript => r"(?:interface|class|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)",
-        Language::Go => r"type\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+struct",
-        Language::Java => r"(?:public\s+)?class\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+    let re: &Regex = match lang {
+        Language::Rust => &RUST_STRUCT_RE,
+        Language::Python => &PYTHON_STRUCT_RE,
+        Language::TypeScript => &TS_STRUCT_RE,
+        Language::Go => &GO_STRUCT_RE,
+        Language::Java => &JAVA_STRUCT_RE,
         _ => return Vec::new(),
     };
-
-    let re = Regex::new(pattern).unwrap();
     re.captures_iter(content)
         .filter_map(|caps| caps.get(1).map(|m| m.as_str().to_string()))
         .take(10)
@@ -213,13 +242,11 @@ fn extract_structs(content: &str, lang: &Language) -> Vec<String> {
 }
 
 fn extract_traits(content: &str, lang: &Language) -> Vec<String> {
-    let pattern = match lang {
-        Language::Rust => r"(?:pub\s+)?trait\s+([a-zA-Z_][a-zA-Z0-9_]*)",
-        Language::TypeScript => r"interface\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+    let re: &Regex = match lang {
+        Language::Rust => &RUST_TRAIT_RE,
+        Language::TypeScript => &TS_TRAIT_RE,
         _ => return Vec::new(),
     };
-
-    let re = Regex::new(pattern).unwrap();
     re.captures_iter(content)
         .filter_map(|caps| caps.get(1).map(|m| m.as_str().to_string()))
         .take(5)

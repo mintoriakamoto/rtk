@@ -14,8 +14,17 @@ use std::sync::OnceLock;
 static CACHED_SALT: OnceLock<String> = OnceLock::new();
 
 const TELEMETRY_URL: Option<&str> = option_env!("RTK_TELEMETRY_URL");
+#[cfg(feature = "telemetry")]
 const TELEMETRY_TOKEN: Option<&str> = option_env!("RTK_TELEMETRY_TOKEN");
 const PING_INTERVAL_SECS: u64 = 23 * 3600; // 23 hours
+
+// A build that bakes in an endpoint but can't send to it is a silent
+// misconfiguration — fail the build instead.
+#[cfg(not(feature = "telemetry"))]
+const _: () = assert!(
+    TELEMETRY_URL.is_none(),
+    "RTK_TELEMETRY_URL is set but the `telemetry` cargo feature is disabled; build with --features telemetry"
+);
 
 /// Send a telemetry ping if enabled and not already sent today.
 /// Fire-and-forget: errors are silently ignored.
@@ -141,15 +150,24 @@ fn send_ping() -> Result<(), Box<dyn std::error::Error>> {
         "meta_usage": enriched.meta_usage,
     });
 
-    let mut req = ureq::post(url).set("Content-Type", "application/json");
+    #[cfg(feature = "telemetry")]
+    {
+        let mut req = ureq::post(url).set("Content-Type", "application/json");
 
-    if let Some(token) = TELEMETRY_TOKEN {
-        req = req.set("X-RTK-Token", token);
+        if let Some(token) = TELEMETRY_TOKEN {
+            req = req.set("X-RTK-Token", token);
+        }
+
+        // 2 second timeout — if server is down, we move on
+        req.timeout(std::time::Duration::from_secs(2))
+            .send_string(&payload.to_string())?;
     }
-
-    // 2 second timeout — if server is down, we move on
-    req.timeout(std::time::Duration::from_secs(2))
-        .send_string(&payload.to_string())?;
+    #[cfg(not(feature = "telemetry"))]
+    {
+        // Unreachable: TELEMETRY_URL is const None without the feature (see
+        // the const assert above), so maybe_ping returns before spawning us.
+        let _ = (url, &payload);
+    }
 
     Ok(())
 }

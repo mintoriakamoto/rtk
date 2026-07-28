@@ -13,32 +13,60 @@ keywords = ["cli", "llm", "token", "filter", "productivity"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", default-features = false, features = [
+    "std",
+    "derive",
+    "help",
+    "usage",
+    "error-context",
+    "color",
+] }
 anyhow = "1.0"
 ignore = "0.4"
 walkdir = "2"
-regex = "1"
+# unicode-perl keeps \b \w \d \s working, unicode-case keeps (?i) working.
+# The heavy \p{...} tables (gencat/script/age/segment) are unused: no pattern
+# in src/ or src/filters/*.toml uses \p{...}. User-authored \p{...} in custom
+# filters.toml fails loudly at Regex::new with a clear error, not silently.
+regex = { version = "1", default-features = false, features = [
+    "std",
+    "perf",
+    "unicode-perl",
+    "unicode-case",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 colored = "3"
 dirs = "5"
 rusqlite = { version = "0.31", features = ["bundled"] }
 toml = "0.8"
-chrono = "0.4"
+chrono = { version = "0.4", default-features = false, features = [
+    "clock",
+    "std",
+] }
 tempfile = "3"
 sha2 = "0.10"
-ureq = "2"
+ureq = { version = "2", default-features = false, features = [
+    "tls",
+], optional = true }
 getrandom = "0.4"
 flate2 = "1.0"
 quick-xml = "0.37"
 which = "8"
 automod = "1"
 
+[features]
+default = []
+# Compiles in the HTTP client used for the opt-in usage ping and GDPR erasure
+# requests. Only useful together with RTK_TELEMETRY_URL at build time; default
+# builds have no telemetry endpoint and skip the entire TLS stack.
+telemetry = ["dep:ureq"]
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [build-dependencies]
-toml = "0.8"
+toml = { version = "0.8", default-features = false, features = ["parse"] }
 
 [dev-dependencies]
 
@@ -51,6 +79,9 @@ strip = true
 
 # cargo-deb configuration
 [package.metadata.deb]
+# Official packages ship with the telemetry HTTP client compiled in (still
+# opt-in at runtime and inert without RTK_TELEMETRY_URL at build time).
+features = ["telemetry"]
 maintainer = "Patrick Szymkowiak"
 copyright = "2024 Patrick Szymkowiak"
 license-file = ["LICENSE", "0"]

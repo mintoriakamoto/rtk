@@ -613,11 +613,10 @@ fn filter_go_build_with_exit(output: &str, exit_code: i32) -> String {
 }
 
 fn format_go_build_failure(output: &str, exit_code: i32) -> String {
-    let lines: Vec<String> = output
+    let lines: Vec<&str> = output
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
-        .map(str::to_string)
         .collect();
 
     if lines.is_empty() {

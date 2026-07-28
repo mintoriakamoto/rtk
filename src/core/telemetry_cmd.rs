@@ -172,6 +172,7 @@ fn run_forget() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "telemetry")]
 fn send_erasure_request(device_hash: &str) -> Result<()> {
     let url = option_env!("RTK_TELEMETRY_URL");
     let url = match url {
@@ -194,6 +195,13 @@ fn send_erasure_request(device_hash: &str) -> Result<()> {
         .send_string(&payload.to_string())?;
 
     Ok(())
+}
+
+#[cfg(not(feature = "telemetry"))]
+fn send_erasure_request(_device_hash: &str) -> Result<()> {
+    // No endpoint is compiled in without the feature (enforced by a const
+    // assert in telemetry.rs), so there is no server-side data to erase.
+    anyhow::bail!("no telemetry endpoint configured")
 }
 
 #[cfg(test)]

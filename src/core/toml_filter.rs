@@ -525,10 +525,12 @@ pub fn apply_filter_with_info(filter: &CompiledFilter, stdout: &str) -> (String,
             .into_iter()
             .map(|mut line| {
                 for rule in &filter.replace {
-                    line = rule
-                        .pattern
-                        .replace_all(&line, rule.replacement.as_str())
-                        .into_owned();
+                    // Only reallocate when the rule actually rewrote the line.
+                    if let std::borrow::Cow::Owned(rewritten) =
+                        rule.pattern.replace_all(&line, rule.replacement.as_str())
+                    {
+                        line = rewritten;
+                    }
                 }
                 line
             })
