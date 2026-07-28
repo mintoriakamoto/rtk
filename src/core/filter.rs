@@ -340,7 +340,7 @@ pub fn smart_truncate(content: &str, max_lines: usize, _lang: &Language) -> Stri
             || trimmed == "{";
 
         if is_important || kept_lines < max_lines / 2 {
-            result.push((*line).to_string());
+            result.push(*line);
             kept_lines += 1;
         }
         // Non-important lines beyond max_lines/2 are silently skipped —
@@ -353,9 +353,12 @@ pub fn smart_truncate(content: &str, max_lines: usize, _lang: &Language) -> Stri
 
     // Single end-of-output marker: not code syntax, unambiguous to AI agents.
     // Invariant: kept_lines + N == lines.len() (N = lines not shown)
-    result.push(format!("[{} more lines]", lines.len() - kept_lines));
-
-    result.join("\n")
+    let mut out = result.join("\n");
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out.push_str(&format!("[{} more lines]", lines.len() - kept_lines));
+    out
 }
 
 #[cfg(test)]

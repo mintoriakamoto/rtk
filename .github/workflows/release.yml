@@ -59,7 +59,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -80,7 +80,7 @@ jobs:
           sudo apt-get install -y musl-tools
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }} --features telemetry
         env:
           RTK_TELEMETRY_URL: ${{ vars.RTK_TELEMETRY_URL }}
           RTK_TELEMETRY_TOKEN: ${{ secrets.RTK_TELEMETRY_TOKEN }}
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -136,7 +136,7 @@ jobs:
     container: fedora:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install dependencies
         run: |
@@ -146,7 +146,7 @@ jobs:
         run: cargo install cargo-generate-rpm
 
       - name: Build release
-        run: cargo build --release
+        run: cargo build --release --features telemetry
         env:
           RTK_TELEMETRY_URL: ${{ vars.RTK_TELEMETRY_URL }}
           RTK_TELEMETRY_TOKEN: ${{ secrets.RTK_TELEMETRY_TOKEN }}
@@ -176,7 +176,7 @@ jobs:
           permission-contents: write
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4

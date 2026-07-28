@@ -27,6 +27,11 @@ use std::sync::OnceLock;
 /// assert_eq!(truncate("hi", 10), "hi");
 /// ```
 pub fn truncate(s: &str, max_len: usize) -> String {
+    // Fast path: byte length >= char count, so a short byte length proves the
+    // string fits without an O(n) char scan (the overwhelmingly common case).
+    if s.len() <= max_len {
+        return s.to_string();
+    }
     let char_count = s.chars().count();
     if char_count <= max_len {
         s.to_string()

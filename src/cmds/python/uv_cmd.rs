@@ -102,17 +102,18 @@ fn filter_uv_run_output(output: &str, stdout: &str, stderr: &str, exit_code: i32
         return extracted;
     }
 
-    let tail: Vec<String> = clean
+    let kept: Vec<&str> = clean
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
-        .map(|line| truncate(line, 200))
         .collect();
 
     // The exit code already carries the failure; restating it would only add
     // tokens, so the command's own message is returned untouched.
-    let skip = tail.len().saturating_sub(MAX_FALLBACK_TAIL_LINES);
-    tail[skip..].join("\n")
+    // Truncate only the surviving tail window, not every line.
+    let skip = kept.len().saturating_sub(MAX_FALLBACK_TAIL_LINES);
+    let tail: Vec<String> = kept[skip..].iter().map(|line| truncate(line, 200)).collect();
+    tail.join("\n")
 }
 
 /// Expects ANSI-stripped input.
@@ -176,13 +177,13 @@ fn program_output(text: &str, tee_slug: &str) -> String {
         return String::new();
     };
     let lines = &lines[..=last_content];
-    let capped: Vec<String> = lines
-        .iter()
-        .map(|line| truncate(line, MAX_PROGRAM_LINE_CHARS))
-        .collect();
-    let line_was_cut = capped.iter().zip(lines).any(|(cut, full)| cut.len() != full.len());
 
-    if capped.len() <= CAP_INVENTORY {
+    if lines.len() <= CAP_INVENTORY {
+        let capped: Vec<String> = lines
+            .iter()
+            .map(|line| truncate(line, MAX_PROGRAM_LINE_CHARS))
+            .collect();
+        let line_was_cut = capped.iter().zip(lines).any(|(cut, full)| cut.len() != full.len());
         let out = capped.join("\n");
         if line_was_cut {
             if let Some(hint) = crate::core::tee::force_tee_hint(&clean, tee_slug) {
@@ -193,16 +194,27 @@ fn program_output(text: &str, tee_slug: &str) -> String {
     }
 
     // A program's result is usually its last line, so keep both ends.
+    // Only the surviving head/tail windows are truncated — the omitted middle
+    // (which can be thousands of lines) is never allocated.
     let head = CAP_INVENTORY / 2;
     let tail = CAP_INVENTORY - head;
-    let omitted = capped.len() - CAP_INVENTORY;
+    let omitted = lines.len() - CAP_INVENTORY;
 
-    let mut out = capped[..head].join("\n");
+    let capped_head: Vec<String> = lines[..head]
+        .iter()
+        .map(|line| truncate(line, MAX_PROGRAM_LINE_CHARS))
+        .collect();
+    let capped_tail: Vec<String> = lines[lines.len() - tail..]
+        .iter()
+        .map(|line| truncate(line, MAX_PROGRAM_LINE_CHARS))
+        .collect();
+
+    let mut out = capped_head.join("\n");
     out.push_str(&format!("\n... ({omitted} lines omitted)\n"));
-    out.push_str(&capped[capped.len() - tail..].join("\n"));
+    out.push_str(&capped_tail.join("\n"));
 
     // A cut in the head region sits before the tail offset, so `tail -n +N` skips it.
-    let head_line_was_cut = capped[..head]
+    let head_line_was_cut = capped_head
         .iter()
         .zip(&lines[..head])
         .any(|(cut, full)| cut != full);

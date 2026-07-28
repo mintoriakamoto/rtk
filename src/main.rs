@@ -401,8 +401,14 @@ enum Commands {
     Wget {
         /// URL to download
         url: String,
-        /// Output file (-O - for stdout)
-        #[arg(short = 'O', long = "output-document", allow_hyphen_values = true)]
+        /// Output file (-O - or bare -O for stdout)
+        #[arg(
+            short = 'O',
+            long = "output-document",
+            allow_hyphen_values = true,
+            num_args = 0..=1,
+            default_missing_value = "-"
+        )]
         output: Option<String>,
         /// Additional wget arguments
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -2775,6 +2781,24 @@ mod tests {
     use super::*;
     use clap::Parser;
     use std::cell::Cell;
+
+    /// Bare `-O` means stdout (wget's `-O -`), and `-O <file>` still takes a
+    /// value — the smoke suite runs `rtk wget <url> -O`.
+    #[test]
+    fn test_wget_bare_dash_o_means_stdout() {
+        let cli = Cli::try_parse_from(["rtk", "wget", "https://example.com/x", "-O"]).unwrap();
+        match cli.command {
+            Commands::Wget { output, .. } => assert_eq!(output.as_deref(), Some("-")),
+            _ => panic!("Expected Wget command"),
+        }
+
+        let cli =
+            Cli::try_parse_from(["rtk", "wget", "https://example.com/x", "-O", "out.bin"]).unwrap();
+        match cli.command {
+            Commands::Wget { output, .. } => assert_eq!(output.as_deref(), Some("out.bin")),
+            _ => panic!("Expected Wget command"),
+        }
+    }
 
     #[test]
     fn test_git_commit_single_message() {

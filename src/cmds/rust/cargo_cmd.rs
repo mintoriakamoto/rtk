@@ -883,7 +883,9 @@ fn extract_json_diagnostics(raw: &str) -> JsonDiagnostics {
             continue;
         }
         if let Some(rendered) = msg.rendered {
-            bucket.push(crate::core::utils::strip_ansi(&rendered).trim_end().to_string());
+            let mut cleaned = crate::core::utils::strip_ansi(&rendered);
+            cleaned.truncate(cleaned.trim_end().len());
+            bucket.push(cleaned);
         } else if !msg.message.is_empty() {
             bucket.push(msg.message);
         }

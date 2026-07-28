@@ -335,7 +335,7 @@ fn format_match_line(line: &str, show_file: bool, show_line: bool) -> Option<Str
     let sep = if is_match { ':' } else { '-' };
     let mut output = String::new();
     if show_file {
-        output.push_str(&file);
+        output.push_str(file);
         output.push(sep);
     }
     if show_line {
@@ -563,7 +563,8 @@ pub fn run(
     let result = engine_capture(engine, &extra_args, &patterns, &paths)?;
 
     let exit_code = result.exit_code;
-    let raw_output = result.stdout.clone();
+    // Move (not clone) the engine output — it can be megabytes.
+    let raw_output = result.stdout;
 
     // Unparseable shape re-runs verbatim below (with its own stderr), so handle it
     // before surfacing this run's stderr (#2333).
@@ -575,7 +576,7 @@ pub fn run(
         eprint!("{}", result.stderr);
     }
 
-    if result.stdout.trim().is_empty() {
+    if raw_output.trim().is_empty() {
         timer.track(&real_cmd, &rtk_label, &raw_output, "");
         return Ok(exit_code);
     }
@@ -590,7 +591,7 @@ pub fn run(
         None
     };
 
-    let mut by_file: HashMap<String, Vec<(usize, bool, String)>> = HashMap::new();
+    let mut by_file: HashMap<&str, Vec<(usize, bool, String)>> = HashMap::new();
     for line in raw_output.lines() {
         let Some((file, line_num, is_match, content)) = parse_match_line(line) else {
             continue;
@@ -734,12 +735,12 @@ pub fn run(
 /// Returns `None` for lines that do not match the expected shape.
 /// The `bool` in the tuple is `true` for match lines (`:` separator) and
 /// `false` for context lines (`-` separator, emitted by -A/-B/-C).
-fn parse_match_line(line: &str) -> Option<(String, usize, bool, &str)> {
+fn parse_match_line(line: &str) -> Option<(&str, usize, bool, &str)> {
     static MATCH_LINE_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"^([^\x00]+)\x00(\d+)([:-])(.*)$").unwrap());
 
     MATCH_LINE_RE.captures(line).and_then(|caps| {
-        let file = caps.get(1)?.as_str().to_string();
+        let file = caps.get(1)?.as_str();
         let line_num: usize = caps.get(2)?.as_str().parse().ok()?;
         let sep = caps.get(3)?.as_str();
         let content = caps.get(4)?.as_str();

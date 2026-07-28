@@ -8,6 +8,13 @@ updates:
     labels:
       - "dependencies"
     open-pull-requests-limit: 5
+    # Routine minor/patch bumps arrive as a single grouped PR; security
+    # updates still open immediately as their own PRs.
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "github-actions"
     target-branch: "develop"
