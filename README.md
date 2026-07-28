@@ -479,6 +479,8 @@ rtk telemetry forget     # Withdraw consent + delete all local data + request se
 export RTK_TELEMETRY_DISABLED=1   # Blocks telemetry regardless of consent
 ```
 
+**Building from source?** Default `cargo build` produces a binary with **no telemetry networking code compiled in at all** (the HTTP client is behind the opt-in `telemetry` cargo feature, which official release artifacts enable). See [docs/TELEMETRY.md](docs/TELEMETRY.md) for details.
+
 ## Star History
 
 <a href="https://www.star-history.com/?repos=mintoriakamoto%2Frtk&type=date&legend=top-left">

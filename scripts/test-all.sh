@@ -162,8 +162,11 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 
 # Network-dependent tests (curl/wget against mockhttp.org) are skipped when
 # the endpoint is unreachable, so the suite stays green offline and in CI.
+# Probe both endpoints the tests use — reachability of one does not imply the
+# other, and a flaky or changed /json payload must skip, not fail.
 NETWORK_OK=0
-if curl -fsS --max-time 5 https://mockhttp.org/robots.txt >/dev/null 2>&1; then
+if curl -fsS --max-time 5 https://mockhttp.org/robots.txt >/dev/null 2>&1 \
+    && curl -fsS --max-time 5 https://mockhttp.org/json 2>/dev/null | grep -q "string"; then
     NETWORK_OK=1
 fi
 

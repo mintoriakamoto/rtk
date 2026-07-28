@@ -177,7 +177,7 @@ The telemetry implementation lives in `src/core/telemetry.rs`. Key design decisi
 - **Fire-and-forget**: errors are silently ignored, never shown to users
 - **Non-blocking**: runs in a `std::thread::spawn`, 2-second timeout
 - **No async**: consistent with RTK's single-threaded design
-- **Compile-time gating**: if `RTK_TELEMETRY_URL` is not set at build time, all telemetry code is dead — the binary makes zero network calls
+- **Compile-time gating**: the HTTP client (`ureq` and its TLS stack) is only compiled in with `cargo build --features telemetry` — default source builds contain no telemetry networking code at all. Official release artifacts are built with the feature. On top of that, if `RTK_TELEMETRY_URL` is not set at build time, all telemetry code is dead — the binary makes zero network calls. Setting `RTK_TELEMETRY_URL` without the feature is a compile error, so a misconfigured build can't silently drop telemetry.
 - **23-hour interval**: prevents clock-drift accumulation that a strict 24h interval would cause
 
 When adding new fields:
