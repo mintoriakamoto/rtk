@@ -365,9 +365,11 @@ fi
 if command -v wget &> /dev/null; then
   section "wget"
   # robots.txt is stable across requests; /json/1 is not (see curl above),
-  # and wget has no file:// support to pin the payload.
-  bench "wget" "wget -qO- https://mockhttp.org/robots.txt" "$RTK wget https://mockhttp.org/robots.txt"
-  rm -f robots.txt 2>/dev/null
+  # and wget has no file:// support to pin the payload. Compare stdout mode
+  # to stdout mode (bare -O = '-'): raw `wget -qO-` streams the body, and
+  # rtk's download-mode summary is longer than the body itself on tiny
+  # payloads, which trips the negative gate for apples-to-oranges reasons.
+  bench "wget" "wget -qO- https://mockhttp.org/robots.txt" "$RTK wget https://mockhttp.org/robots.txt -O"
 fi
 
 # ===================
