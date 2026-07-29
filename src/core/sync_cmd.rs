@@ -293,20 +293,24 @@ pub fn run(since_days: i64, dry_run: bool, verbose: u8) -> Result<i32> {
     Ok(0)
 }
 
-#[cfg(feature = "sync")]
+/// Send the payload through the codebase's single egress point
+/// (`core::http`), mapping portal status codes to actionable guidance.
 fn post_json(url: &str, token: &str, body: &str) -> Result<String> {
-    let response = ureq::post(url)
-        .set("Content-Type", "application/json")
-        .set("Authorization", &format!("Bearer {token}"))
-        .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS))
-        .send_string(body);
+    use crate::core::http::{self, HttpError};
 
-    match response {
-        Ok(r) => Ok(r.into_string().unwrap_or_default()),
-        // Surface the portal's own message: 401 means a bad/revoked token and
-        // 4xx means a payload the server rejected — both are user-actionable.
-        Err(ureq::Error::Status(code, r)) => {
-            let detail = r.into_string().unwrap_or_default();
+    let auth = format!("Bearer {token}");
+    let headers = [("Authorization", auth.as_str())];
+
+    match http::post_json(
+        url,
+        body,
+        &headers,
+        std::time::Duration::from_secs(HTTP_TIMEOUT_SECS),
+    ) {
+        Ok(body) => Ok(body),
+        // Surface the portal's own message: 401 means a bad/revoked token,
+        // 402 means billing — both are user-actionable, not bugs.
+        Err(HttpError::Status(code, detail)) => {
             let hint = match code {
                 401 => " — token rejected; re-run `rtk portal login` with a fresh device token",
                 402 => " — subscription inactive; check billing on the portal",
@@ -314,17 +318,8 @@ fn post_json(url: &str, token: &str, body: &str) -> Result<String> {
             };
             bail!("Portal returned HTTP {code}{hint}: {}", detail.trim())
         }
-        Err(e) => Err(e).context("Failed to reach the portal"),
+        Err(HttpError::Transport(msg)) => bail!("Failed to reach the portal: {msg}"),
     }
-}
-
-#[cfg(not(feature = "sync"))]
-fn post_json(_url: &str, _token: &str, _body: &str) -> Result<String> {
-    bail!(
-        "This rtk build has no HTTP client compiled in (the `sync` feature is off). \
-         Rebuild with `cargo install --git <repo> --features sync`, or use `rtk portal sync --dry-run` \
-         and upload the payload yourself."
-    )
 }
 
 #[cfg(test)]
