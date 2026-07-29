@@ -185,14 +185,18 @@ fn send_erasure_request(device_hash: &str) -> Result<()> {
         "action": "erasure",
     });
 
-    let mut req = ureq::post(&url).set("Content-Type", "application/json");
-
+    // Routed through core::http, the codebase's single egress point.
+    let mut headers: Vec<(&str, &str)> = Vec::new();
     if let Some(token) = option_env!("RTK_TELEMETRY_TOKEN") {
-        req = req.set("X-RTK-Token", token);
+        headers.push(("X-RTK-Token", token));
     }
 
-    req.timeout(std::time::Duration::from_secs(5))
-        .send_string(&payload.to_string())?;
+    crate::core::http::post_json(
+        &url,
+        &payload.to_string(),
+        &headers,
+        std::time::Duration::from_secs(5),
+    )?;
 
     Ok(())
 }

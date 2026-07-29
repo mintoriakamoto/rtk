@@ -33,7 +33,7 @@ rules:
       - pattern: TcpListener::$METHOD(...)
     message: >
       Raw socket usage detected. RTK is a CLI proxy — it should not
-      open network connections directly. Use ureq in telemetry only.
+      open network connections directly. All egress goes through src/core/http.rs.
     languages: [rust]
     severity: ERROR
 
@@ -41,7 +41,7 @@ rules:
     pattern: reqwest::$METHOD(...)
     message: >
       reqwest is forbidden in RTK. The project uses ureq for HTTP
-      (telemetry only). Adding reqwest increases binary size and attack surface.
+      via src/core/http.rs only. Adding reqwest increases binary size and attack surface.
     languages: [rust]
     severity: ERROR
 
@@ -63,14 +63,16 @@ rules:
     languages: [rust]
     severity: ERROR
 
-  - id: ureq-outside-telemetry
+  - id: ureq-outside-http-module
     pattern: ureq::$METHOD(...)
     paths:
       exclude:
-        - /src/core/telemetry.rs
+        - /src/core/http.rs
     message: >
-      ureq usage outside of src/core/telemetry.rs.
-      HTTP calls are restricted to the telemetry module to prevent data exfiltration.
+      ureq usage outside of src/core/http.rs.
+      rtk reads the user's command output, so all network egress is funnelled
+      through one audited module to prevent data exfiltration. Call
+      core::http::post_json instead, and state in review what leaves the machine.
     languages: [rust]
     severity: ERROR
 
