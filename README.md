@@ -3,7 +3,12 @@
 </p>
 
 <p align="center">
-  <strong>High-performance CLI proxy that cuts up to 90% of the bash output your agent reads</strong>
+  <strong>The Cook Labs Token Saver engine — cuts up to 90% of the bash output your agent reads</strong>
+</p>
+
+<p align="center">
+  Part of the <a href="https://portal.cooklabs.dev">Cook Labs</a> platform: one account, one key,
+  one dashboard — and you only pay a share of what we save you.
 </p>
 
 <p align="center">
