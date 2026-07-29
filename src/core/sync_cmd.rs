@@ -182,6 +182,10 @@ pub fn run_subcommand(cmd: &PortalSubcommand, verbose: u8) -> Result<i32> {
         }
         PortalSubcommand::Logout => {
             let path = credentials_path()?;
+            // nosemgrep: filesystem-deletion -- logout removes only rtk's own
+            // credentials file. The path is derived from the config dir and a
+            // fixed filename (never user input), and deleting it is the entire
+            // point of the command: the device token must not outlive logout.
             match std::fs::remove_file(&path) {
                 Ok(()) => println!("Logged out (removed {})", path.display()),
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
