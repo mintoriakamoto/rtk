@@ -7,8 +7,9 @@
 </p>
 
 <p align="center">
-  Part of the <a href="https://portal.cooklabs.dev">Cook Labs</a> platform: one account, one key,
-  one dashboard — and you only pay a share of what we save you.
+  Part of <a href="https://github.com/mintoriakamoto/portal-scaffold-">Cook Labs</a>: one account, one key,
+  one dashboard — and you only pay a share of what we save you. Accounts, credits,
+  installer, and billing all live in the Cook Labs hub repo; rtk stays a standalone engine.
 </p>
 
 <p align="center">
