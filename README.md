@@ -3,13 +3,13 @@
 </p>
 
 <p align="center">
-  <strong>The Cook Labs Token Saver engine — cuts up to 90% of the bash output your agent reads</strong>
+  <strong>The Token Saver engine — cuts up to 90% of the bash output your agent reads</strong>
 </p>
 
 <p align="center">
-  Part of <a href="https://github.com/mintoriakamoto/portal-scaffold-">Cook Labs</a>: one account, one key,
+  Part of <a href="https://github.com/mintoriakamoto/Portal-Scaffold-">Token Saver</a>: one account, one key,
   one dashboard — and you only pay a share of what we save you. Accounts, credits,
-  installer, and billing all live in the Cook Labs hub repo; rtk stays a standalone engine.
+  installer, and billing all live in the Token Saver portal repo; rtk stays a standalone engine.
 </p>
 
 <p align="center">
