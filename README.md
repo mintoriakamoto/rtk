@@ -3,13 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>The Token Saver engine — cuts up to 90% of the bash output your agent reads</strong>
-</p>
-
-<p align="center">
-  Part of <a href="https://github.com/mintoriakamoto/Portal-Scaffold-">Token Saver</a>: one account, one key,
-  one dashboard — and you only pay a share of what we save you. Accounts, credits,
-  installer, and billing all live in the Token Saver portal repo; rtk stays a standalone engine.
+  <strong>High-performance CLI proxy that cuts up to 90% of the bash output your agent reads</strong>
 </p>
 
 <p align="center">
