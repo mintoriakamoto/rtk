@@ -25,7 +25,6 @@ pub const RTK_META_COMMANDS: &[&str] = &[
     "session",
     "rewrite",
     "telemetry",
-    "portal",
     "smart",
     "deps",
     "json",

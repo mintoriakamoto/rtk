@@ -608,15 +608,6 @@ enum Commands {
         command: core::telemetry_cmd::TelemetrySubcommand,
     },
 
-    /// Connect to an rtk portal and upload savings aggregates for billing.
-    ///
-    /// Named `portal` rather than `sync` so the rewrite hook can never shadow
-    /// the system `sync(1)` binary.
-    Portal {
-        #[command(subcommand)]
-        command: core::sync_cmd::PortalSubcommand,
-    },
-
     /// Learn CLI corrections from Claude Code error history
     Learn {
         /// Filter by project path (substring match)
@@ -2288,8 +2279,6 @@ fn run_cli() -> Result<i32> {
             core::telemetry_cmd::run(&command)?;
             0
         }
-
-        Commands::Portal { command } => core::sync_cmd::run_subcommand(&command, cli.verbose)?,
 
         Commands::Learn {
             project,

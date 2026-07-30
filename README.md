@@ -443,31 +443,6 @@ brew uninstall rtk           # If installed via Homebrew
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — contribution guide
 - **[SECURITY.md](SECURITY.md)** — security policy
 
-## Portal Sync (optional)
-
-If you use an rtk portal, `rtk portal` uploads your **per-day savings aggregates** so the
-portal can report team-wide savings and bill against them.
-
-```bash
-rtk portal login --url https://portal.example.com --token <DEVICE_TOKEN>
-rtk portal sync                  # upload the last 30 days
-rtk portal sync --since 90       # wider window (re-uploads are idempotent)
-rtk portal sync --dry-run        # print the exact payload, send nothing
-rtk portal status                # which portal, when it last synced
-rtk portal logout                # forget credentials on this machine
-```
-
-**What leaves your machine:** only `date`, `commands`, `input_tokens`, `output_tokens`,
-`saved_tokens` — one row per day. Never commands, arguments, paths, or command output.
-Run `rtk portal sync --dry-run` to see the exact bytes before sending any.
-
-Device tokens are created on the portal's Settings page and stored at
-`~/.config/rtk/credentials.toml` with `0600` permissions (never in `config.toml`, which is
-routinely shared). `RTK_DEVICE_TOKEN` works instead of `--token` for CI/non-interactive use.
-
-The HTTP client is behind the default-on `sync` cargo feature; `cargo build
---no-default-features` produces a fully working local-only CLI with no network code at all.
-
 ## Privacy & Telemetry
 
 RTK can collect **anonymous, aggregate usage metrics** once per day. Telemetry is **disabled by default** and requires **explicit opt-in consent** (GDPR Art. 6, 7) during `rtk init` or via `rtk telemetry enable`. This data helps us build a better product: identifying which commands need filters, which filters need improvement, and how much value RTK delivers. For the full list of fields, data handling, and contributor guidelines, see **[docs/TELEMETRY.md](docs/TELEMETRY.md)**.
