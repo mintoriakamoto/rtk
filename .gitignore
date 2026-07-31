@@ -48,3 +48,7 @@ claudedocs
 
 # icm 
 .fastembed_cache/
+
+# Python bytecode from the Hermes plugin tests
+__pycache__/
+*.py[cod]

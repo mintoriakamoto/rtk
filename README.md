@@ -3,12 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>The Cook Labs Token Saver engine — cuts up to 90% of the bash output your agent reads</strong>
-</p>
-
-<p align="center">
-  Part of the <a href="https://portal.cooklabs.dev">Cook Labs</a> platform: one account, one key,
-  one dashboard — and you only pay a share of what we save you.
+  <strong>High-performance CLI proxy that cuts up to 90% of the bash output your agent reads</strong>
 </p>
 
 <p align="center">
@@ -447,31 +442,6 @@ brew uninstall rtk           # If installed via Homebrew
 - **[ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md)** — system design and technical decisions
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — contribution guide
 - **[SECURITY.md](SECURITY.md)** — security policy
-
-## Portal Sync (optional)
-
-If you use an rtk portal, `rtk portal` uploads your **per-day savings aggregates** so the
-portal can report team-wide savings and bill against them.
-
-```bash
-rtk portal login --url https://portal.example.com --token <DEVICE_TOKEN>
-rtk portal sync                  # upload the last 30 days
-rtk portal sync --since 90       # wider window (re-uploads are idempotent)
-rtk portal sync --dry-run        # print the exact payload, send nothing
-rtk portal status                # which portal, when it last synced
-rtk portal logout                # forget credentials on this machine
-```
-
-**What leaves your machine:** only `date`, `commands`, `input_tokens`, `output_tokens`,
-`saved_tokens` — one row per day. Never commands, arguments, paths, or command output.
-Run `rtk portal sync --dry-run` to see the exact bytes before sending any.
-
-Device tokens are created on the portal's Settings page and stored at
-`~/.config/rtk/credentials.toml` with `0600` permissions (never in `config.toml`, which is
-routinely shared). `RTK_DEVICE_TOKEN` works instead of `--token` for CI/non-interactive use.
-
-The HTTP client is behind the default-on `sync` cargo feature; `cargo build
---no-default-features` produces a fully working local-only CLI with no network code at all.
 
 ## Privacy & Telemetry
 

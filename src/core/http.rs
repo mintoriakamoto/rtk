@@ -7,7 +7,6 @@
 //!
 //! Callers today:
 //! - `core::telemetry` / `core::telemetry_cmd` — opt-in usage ping and GDPR erasure
-//! - `core::sync_cmd` — per-day savings aggregates for portal metering
 //!
 //! Adding a caller is a deliberate act: state in review what leaves the machine.
 
@@ -20,7 +19,7 @@ use std::time::Duration;
 // stub only ever reports a transport failure. Keep the variant so callers'
 // match arms stay identical across builds.
 #[cfg_attr(
-    not(any(feature = "sync", feature = "telemetry")),
+    not(feature = "telemetry"),
     allow(
         dead_code,
         reason = "no-network build cannot produce a status response"
@@ -49,7 +48,7 @@ impl std::error::Error for HttpError {}
 /// `Content-Type: application/json`.
 ///
 /// Returns the response body on success.
-#[cfg(any(feature = "sync", feature = "telemetry"))]
+#[cfg(feature = "telemetry")]
 pub fn post_json(
     url: &str,
     body: &str,
@@ -71,9 +70,13 @@ pub fn post_json(
     }
 }
 
-/// Networking is compiled out entirely when neither feature is enabled, so a
+/// Networking is compiled out entirely when the feature is disabled, so a
 /// default-off build cannot make an outbound request even by mistake.
-#[cfg(not(any(feature = "sync", feature = "telemetry")))]
+#[cfg(not(feature = "telemetry"))]
+#[allow(
+    dead_code,
+    reason = "fail-closed stub has no production caller in a no-network build; exercised by tests"
+)]
 pub fn post_json(
     _url: &str,
     _body: &str,
@@ -81,7 +84,8 @@ pub fn post_json(
     _timeout: Duration,
 ) -> Result<String, HttpError> {
     Err(HttpError::Transport(
-        "this rtk build has no HTTP client compiled in (build with --features sync)".to_string(),
+        "this rtk build has no HTTP client compiled in (build with --features telemetry)"
+            .to_string(),
     ))
 }
 
@@ -103,7 +107,7 @@ mod tests {
 
     /// Without a network feature the call must fail closed rather than
     /// silently succeed or panic.
-    #[cfg(not(any(feature = "sync", feature = "telemetry")))]
+    #[cfg(not(feature = "telemetry"))]
     #[test]
     fn test_no_feature_fails_closed() {
         let r = post_json("http://example.com", "{}", &[], Duration::from_secs(1));

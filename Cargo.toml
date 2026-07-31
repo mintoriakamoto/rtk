@@ -46,8 +46,7 @@ chrono = { version = "0.4", default-features = false, features = [
 ] }
 tempfile = "3"
 sha2 = "0.10"
-# Shared HTTP client for `rtk sync` (portal metering) and the optional
-# telemetry ping. Enabled by default because sync is a product feature;
+# Shared HTTP client for the optional telemetry ping.
 # `--no-default-features` still builds a fully working local-only CLI.
 ureq = { version = "2", default-features = false, features = [
     "tls",
@@ -59,9 +58,7 @@ which = "8"
 automod = "1"
 
 [features]
-default = ["sync"]
-# `rtk sync` — uploads per-day savings aggregates to a portal for metering.
-sync = ["dep:ureq"]
+default = []
 # Compiles in the HTTP client used for the opt-in usage ping and GDPR erasure
 # requests. Only useful together with RTK_TELEMETRY_URL at build time; a build
 # without it has no telemetry endpoint and never phones home.

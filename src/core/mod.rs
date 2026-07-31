@@ -9,7 +9,6 @@ pub mod guard;
 pub mod http;
 pub mod runner;
 pub mod stream;
-pub mod sync_cmd;
 pub mod tee;
 pub mod telemetry;
 pub mod telemetry_cmd;
