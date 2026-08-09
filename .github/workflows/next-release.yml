@@ -11,6 +11,13 @@ jobs:
   update-next-release:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    # Minimal rights for the GITHUB_TOKEN fallback path (repos without the
+    # GitHub App secrets): label create needs issues:write, the Next Release
+    # PR create/edit needs pull-requests:write.
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     # secrets.* is not available in step-level `if` (workflow validation
     # error); mirror it into job env and test env.* instead.
     env:
@@ -24,6 +31,18 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: read
           permission-pull-requests: write
+
+      # The label is a hard prerequisite of `gh pr create --label` below and
+      # does not exist on fresh forks — create-or-update it idempotently.
+      - name: Ensure next-release label exists
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+        run: |
+          gh label create next-release \
+            --repo "${{ github.repository }}" \
+            --description "Accumulates changelog entries for the next stable release" \
+            --color 0E8A16 \
+            --force
 
       - name: Update Next Release PR
         env:

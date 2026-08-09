@@ -46,6 +46,8 @@ chrono = { version = "0.4", default-features = false, features = [
 ] }
 tempfile = "3"
 sha2 = "0.10"
+# Shared HTTP client for the optional telemetry ping.
+# `--no-default-features` still builds a fully working local-only CLI.
 ureq = { version = "2", default-features = false, features = [
     "tls",
 ], optional = true }
@@ -58,8 +60,8 @@ automod = "1"
 [features]
 default = []
 # Compiles in the HTTP client used for the opt-in usage ping and GDPR erasure
-# requests. Only useful together with RTK_TELEMETRY_URL at build time; default
-# builds have no telemetry endpoint and skip the entire TLS stack.
+# requests. Only useful together with RTK_TELEMETRY_URL at build time; a build
+# without it has no telemetry endpoint and never phones home.
 telemetry = ["dep:ureq"]
 
 [target.'cfg(unix)'.dependencies]

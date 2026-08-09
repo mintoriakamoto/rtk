@@ -11,10 +11,14 @@ jobs:
     # the GitHub App secrets are not configured on this repo.
     permissions:
       pull-requests: write
-    # Skip develop→master PRs (maintainer releases)
+    # Skip the two legitimate master-targeting PR shapes: develop→master
+    # (maintainer promotions) and release-please's release PRs, whose head is
+    # release-please--branches--master--… — flagging those told the release
+    # bot to "target develop", which is exactly wrong for a release.
     if: >-
       github.event.pull_request.base.ref == 'master' &&
-      github.event.pull_request.head.ref != 'develop'
+      github.event.pull_request.head.ref != 'develop' &&
+      !startsWith(github.event.pull_request.head.ref, 'release-please--')
     # secrets.* is not available in step-level `if` (workflow validation
     # error); mirror it into job env and test env.* instead.
     env:
