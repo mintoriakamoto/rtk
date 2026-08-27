@@ -5,6 +5,13 @@ All notable changes to rtk (Rust Token Killer) will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.1](https://github.com/mintoriakamoto/rtk/compare/v0.45.0...v0.45.1) (2026-08-27)
+
+
+### Reverts
+
+* **hermes:** drop the end-to-end harness ([a3dfb32](https://github.com/mintoriakamoto/rtk/commit/a3dfb327ac3b29055f8ffee6230b87b96169540c))
+
 ## [0.45.0](https://github.com/mintoriakamoto/rtk/compare/v0.44.1...v0.45.0) (2026-08-09)
 
 
